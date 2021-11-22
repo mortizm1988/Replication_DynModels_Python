@@ -3,7 +3,8 @@
 """
 Created on Thu Nov 5 21:12:52 2021
 @author: Marcelo Ortiz M @ UPF and BSE.
-Notes:  (3) important: What is the resulting financing policy? include it in the code! seems missing.
+Notes:  (1) Why Ext. financing is always positive?
+        (2) is kstar in the middle of k_Vec¿
 """
 # In[1]: Import Packages and cleaning
 from IPython import get_ipython
@@ -59,10 +60,10 @@ class AgencyModel():
         kstar = ((θ*(1-τ))/(r+δ))**(1/(1-θ))
         #kstar=2083.6801320704803
         # Set up the vectors 
-        k_vec  = np.reshape(np.linspace(0.01*kstar, 5*kstar,dimk),(dimk,1))
-        kp_vec = np.reshape(np.linspace(0.01*kstar, 5*kstar,dimkp),(dimkp,1))
-        c_vec  = np.reshape(np.linspace(0.0, 5*kstar, dimc),(dimc,1))
-        cp_vec = np.reshape(np.linspace(0.0, 5*kstar, dimcp),(dimcp,1))
+        k_vec  = np.reshape(np.linspace(0.01*kstar, 2*kstar,dimk),(dimk,1))
+        kp_vec = np.reshape(np.linspace(0.01*kstar, 2*kstar,dimkp),(dimkp,1))
+        c_vec  = np.reshape(np.linspace(0.0, kstar, dimc),(dimc,1))
+        cp_vec = np.reshape(np.linspace(0.0, kstar, dimcp),(dimcp,1))
         return  [k_vec, kp_vec, c_vec, cp_vec, kstar]    
     
     def trans_matrix(self):
@@ -104,12 +105,10 @@ class AgencyModel():
                         for (i_z, ϵ) in enumerate(z_vec):
                             I                            = kp-(1-δ)*k                          
                             d                            = (1-τ)*(1-(α+s))*ϵ*k**θ + δ*k*τ - I - 0.5*a*((I/k)**2)*k  - cp +c*(1+r*(1-τ))*(1-s)        
-                            #f                           = np.where(d<0,(0-d)/(1-ϕ),0)    
-                            #D[i_k, i_kp, i_c, i_cp, i_z]= d + (1-ϕ)*f
-                            f                            = max(-d,0)  
-                            dprime                       = d-f*(1-θ)
-                            #D[i_k, i_kp, i_c, i_cp, i_z] = np.where(d<0,d*(1+ϕ),d) 
-                            D[i_k, i_kp, i_c, i_cp, i_z] = dprime 
+                            if d>=0:
+                                D[i_k, i_kp, i_c, i_cp, i_z] = d
+                            else:
+                                D[i_k, i_kp, i_c, i_cp, i_z] = d*(1+ϕ)
                             R[i_k, i_kp, i_c, i_cp, i_z] = (α+s)*ϵ*k**θ + s*c*(1+r) + β*D[i_k, i_kp, i_c, i_cp, i_z]
                             
         return [R, D]
@@ -264,8 +263,8 @@ a=1.278        #1.278
 dimz=11
 dimk=25
 dimc=7
-dimkp=dimk
-dimcp=dimc
+dimkp=dimk*5
+dimcp=dimc*5
 stdbound=4
  
 firm=AgencyModel(α,             # manager bonus
@@ -293,7 +292,7 @@ firm=AgencyModel(α,             # manager bonus
 [k_vec, kp_vec, c_vec, cp_vec, kstar]= firm.set_vec()
 [z_vec, z_prob_mat]                  = firm.trans_matrix()
 [R, D]                               = firm.rewards_grids()
-[Up,Kp,Cp,i_kp,i_cp]                 = solution_vi(1,1e-6,1000,firm,R)        #Eq 6
+[Up,Kp,Cp,i_kp,i_cp]                 = solution_vi(1,1e-6,1100,firm,R)        #Eq 6
 #V                                   = solution_vi_V(1,1e-8,1000,firm,D)            #Eq 8
 
 # In[8] Calculate and plot policies
@@ -310,9 +309,10 @@ for z in range(dimz):
             I_p[k,c,z]        = (Kp[k,c,z]-(1-δ)*k_vec[k])/k_vec[k]
             CRatio_P[k,c,z]   = Cp[k,c,z]/(c_vec[c]+k_vec[k])
             d                 = (1-τ)*(1-(α+s))*z_vec[z]*k_vec[k]**θ + δ*k_vec[k]*τ - I_p[k,c,z]  - 0.5*a*((I_p[k,c,z] /k_vec[k])**2)*k_vec[k]  - Cp[k,c,z] +c_vec[c]*(1+r*(1-τ))*(1-s)
-            f                 = max(-d,0)  
-            dprime            = d-f*(1-θ)
-            F_p[k,c,z]        =  (dprime/(c_vec[c]+k_vec[k]))
+            if d>=0:
+                F_p[k,c,z]    = d/(c_vec[c]+k_vec[k])
+            else:
+                F_p[k,c,z]    = d*(1+ϕ)/(c_vec[c]+k_vec[k])
             
 
 [i_kstar, j_kstar] = np.unravel_index(np.argmin(np.abs(kstar-k_vec),axis=None),k_vec.shape)       #the plots are with kstar, for different levels of c and z    
