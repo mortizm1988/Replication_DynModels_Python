@@ -116,22 +116,25 @@ class AgencyModel():
 # In[4]: Bellman operator and Value iteration for Eq 6
 
 @jit(nopython=True,parallel=True)
-def U_interp(grid,U,grid_interp,dimkp,dimcp,dimz):
-    # get the interpolated Utility function
+def U_interp(grid:npt.ArrayLike,U:npt.ArrayLike,grid_interp:npt.ArrayLike,dimkp: int,dimcp: int,dimz:int)->np.ndarray:
+    """ 
+    Interpolate the U function for the extended grid of policies.
+    """
     length=dimkp*dimcp*dimz
     U2=np.empty((length,1))
     for i in prange(length):
         Up = eval_linear(grid,U,grid_interp[i])
         U2[i,0]=Up[0]
     return U2  
-def bellman_operator(U,R,z_prob_mat,grid,grid_interp,i_kp, i_cp, am):
+def bellman_operator(U:npt.ArrayLike,R:npt.ArrayLike,z_prob_mat:npt.ArrayLike,grid:npt.ArrayLike,grid_interp:npt.ArrayLike,i_kp:npt.ArrayLike, i_cp:npt.ArrayLike, am):
     """
     RHS of Eq 6.
     # am is an instance of AgencyModel class
     """
     dimz, dimc, dimk, dimkp, dimcp = am.dimz, am.dimc, am.dimk, am.dimkp, am.dimcp
     
-    # First, compute "Continuation Value"
+    # First, compute "Continuation Value" for every possible future state of nature (kp,cp,z).
+    # The "continuation value" is defined as: E[U(kp,cp,zp)]=sum{U(kp,cp,zp)*Prob(zp,p)}
     cont_value=np.zeros((dimkp,dimcp,dimz))
     if dimc==dimcp and dimk ==dimkp:
         for ind_z in range(dimz):
@@ -146,7 +149,10 @@ def bellman_operator(U,R,z_prob_mat,grid,grid_interp,i_kp, i_cp, am):
                 for i_cpp in range(dimcp):
                     cont_value[i_kpp,i_cpp,ind_z]= np.dot(z_prob_mat[ind_z, :],Uinter[i_kpp,i_cpp,:]  )
     
-    # Second, identify max policy and save it
+    # Second, identify max policy and save it.
+    # For each current state of nature (k,c,z), find the policy {kp,cp} that maximizes RHS: U(k,c,z) + E[U(kp,cp,zp)].
+    # Once found it, update the value of U in this current state of nature with the one generated with the optimal policy
+    # and save the respective optimal policy (kp,cp) for each state of nature (k,c,z).
     for (i_z, z) in enumerate(z_vec):
         for (i_k, k) in enumerate(k_vec):
             for (i_c, c) in enumerate(c_vec):                                           
@@ -159,7 +165,7 @@ def bellman_operator(U,R,z_prob_mat,grid,grid_interp,i_kp, i_cp, am):
 
 
            
-def solution_vi(diff,tol,imax,am, R):
+def solution_vi(diff:float,tol:float,imax:int,R:npt.ArrayLike, am):
         """
         # Value Iteration on Eq 6.
         # am is an instance of AgencyModel class
@@ -169,7 +175,6 @@ def solution_vi(diff,tol,imax,am, R):
         i_kp = np.empty((dimk, dimc, dimz))
         i_cp = np.empty((dimk, dimc, dimz))
         grid = CGrid(k_vec.reshape(dimk),c_vec.reshape(dimc),z_vec.reshape(dimz))
-        #grid_interp = np.asarray([np.array([kp_vec[i_kpp], cp_vec[i_cpp], z_vec[i_zp]]).reshape((1,3)) for i_kpp in range(dimkp) for i_cpp in range(dimcp) for i_zp in range(dimz)])
         grid_interp = [np.array([kp_vec[i_kpp], cp_vec[i_cpp], z_vec[i_zp]]).reshape((1,3)) for i_kpp in range(dimkp) for i_cpp in range(dimcp) for i_zp in range(dimz)]
         print("Iteration start")                   
         for i in range(imax):
@@ -182,7 +187,7 @@ def solution_vi(diff,tol,imax,am, R):
                break
            if i == imax:
                print("Failed to converge!")        
-        # evaluating optimal policies
+        # Evaluating the optimal policies using the indexes obtained in the iterations.
         Kp=np.zeros((dimk, dimc, dimz))
         Cp=np.zeros((dimk, dimc, dimz))
         for index,value in  np.ndenumerate(i_kp):
@@ -262,7 +267,7 @@ def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, ikp, icp, kinit, cinit, N, Ttot)
         
         return [Ksim, Csim,E]  
         
-# In[7]: Main Code // Wrapper
+# In[7]: Set variables and grids
 θ=0.773
 α=0.751/100
 β=0.051   #0.005
@@ -280,8 +285,8 @@ a=1.278        #1.278
 dimz=11      # 11
 dimk=25       #25
 dimc=7
-dimkp=dimk*2
-dimcp=dimc*2
+dimkp=dimk*5
+dimcp=dimc*5
 stdbound=4
  
 firm=AgencyModel(α,             # manager bonus
@@ -309,12 +314,14 @@ firm=AgencyModel(α,             # manager bonus
 [k_vec, kp_vec, c_vec, cp_vec, kstar]= firm.set_vec()
 [z_vec, z_prob_mat]                  = firm.trans_matrix()
 [R, D]                               = firm.rewards_grids()
+# In[8] Value iteration
+
 qe.tic()
-[Up,Kp,Cp,i_kp,i_cp]                 = solution_vi(1,1e-6,1100,firm,R)        #Eq 6
+[Up,Kp,Cp,i_kp,i_cp]                 = solution_vi(1,1e-6,1400,R,firm)        #Eq 6
 qe.toc()
 #V                                   = solution_vi_V(1,1e-8,1000,firm,D)            #Eq 8
 
-# In[8] Calculate and plot policies
+# In[9] Calculate and plot policies
 
 I_p=np.empty((dimk, dimc,dimz))        
 CRatio_P=np.empty((dimk,dimc,dimz))
@@ -325,10 +332,11 @@ F_p=np.empty((dimk, dimc,dimz))
 for z in range(dimz):
     for c in range(dimc):
         for k in range(dimk):            
-            CF_p[k,c,z]       = ((1-τ)*z_vec[z]*k_vec[k]**θ)/k_vec[k]     
-            I_p[k,c,z]        = (Kp[k,c,z]-(1-δ)*k_vec[k])/k_vec[k]
+            CF_p[k,c,z]       = ((1-τ)*z_vec[z]*k_vec[k]**θ)/k_vec[k]
+            I                 = (Kp[k,c,z]-(1-δ)*k_vec[k])
+            I_p[k,c,z]        = I/k_vec[k]
             CRatio_P[k,c,z]   = Cp[k,c,z]/(c_vec[c]+k_vec[k])
-            d                 = (1-τ)*(1-(α+s))*z_vec[z]*k_vec[k]**θ + δ*k_vec[k]*τ - I_p[k,c,z]  - 0.5*a*((I_p[k,c,z] /k_vec[k])**2)*k_vec[k]  - Cp[k,c,z] +c_vec[c]*(1+r*(1-τ))*(1-s)
+            d                 = (1-τ)*(1-(α+s))*z_vec[z]*k_vec[k]**θ + δ*k_vec[k]*τ - I  - 0.5*a*((I/k_vec[k])**2)*k_vec[k]  - Cp[k,c,z] +c_vec[c]*(1+r*(1-τ))*(1-s)
             if d>=0:
                 F_p[k,c,z]    = d/(c_vec[c]+k_vec[k])
             else:
@@ -340,33 +348,33 @@ logz=np.log(z_vec)
 cmed_plot=math.floor(dimc/2)
 
 fig, (ax1,ax2,ax3, ax4) = plt.subplots(4,1)
-ax1.plot(logz,CF_p[i_kstar,0,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
+ax1.plot(logz,CF_p[i_kstar,1,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
 ax1.plot(logz,CF_p[i_kstar,cmed_plot,:] , label='Medium Cash ratio',linestyle = 'solid', c='b')
 ax1.plot(logz,CF_p[i_kstar,dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
 ax1.set_xlabel("Log productivity shock")
 ax1.set_ylabel("Cash Flow / Capital")
 ax1.legend()
 
-ax2.plot(logz,I_p[i_kstar,0,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
+ax2.plot(logz,I_p[i_kstar,1,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
 ax2.plot(logz,I_p[i_kstar,cmed_plot,:] , label='Medium Cash ratio',linestyle = 'solid', c='b')
 ax2.plot(logz,I_p[i_kstar,dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
 ax2.set_xlabel("Log productivity shock")
 ax2.set_ylabel("Investment / Capital")
-ax2.legend()
-
-ax3.plot(logz,CRatio_P[i_kstar,0,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
+#ax2.legend()
+#
+ax3.plot(logz,CRatio_P[i_kstar,1,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
 ax3.plot(logz,CRatio_P[i_kstar,cmed_plot,:] , label='Medium Cash ratio',linestyle = 'solid', c='b')
-ax3.plot(logz,CRatio_P[i_kstar, dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
+ax3.plot(logz,CRatio_P[i_kstar,dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
 ax3.set_xlabel("Log productivity shock")
 ax3.set_ylabel("Cash / Assets")
-ax3.legend()
+#ax3.legend()
 
-ax4.plot(logz,F_p[i_kstar,0,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
+ax4.plot(logz,F_p[i_kstar,1,:] , label='Low Cash ratio',linestyle = 'dashed', c='b')
 ax4.plot(logz,F_p[i_kstar,cmed_plot,:] , label='Medium Cash ratio',linestyle = 'solid', c='b')
-ax4.plot(logz,F_p[i_kstar, dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
+ax4.plot(logz,F_p[i_kstar,dimc-1,:] , label='High Cash ratio',linestyle = 'dotted', c='b')
 ax4.set_xlabel("Log productivity shock")
 ax4.set_ylabel("External FIn / Assets")
-ax4.legend()
+#ax4.legend()
 
 plt.show()
 
