@@ -4,6 +4,7 @@
 Created on Thu Nov 5 21:12:52 2021
 @author: Marcelo Ortiz M @ UPF and BSE.
 Notes: 35 sec with interp (x2) but crushes without interp (?).
+get_ipython().run_line_magic('matplotlib', 'inline')  #for plots in different a window use 'qr'
 """
 # In[1]: Import Packages and cleaning 
 import numpy as np
@@ -11,9 +12,9 @@ import numpy.typing as npt
 import quantecon as qe
 from interpolation.splines import eval_linear, CGrid
 import matplotlib.pyplot as plt
-#get_ipython().run_line_magic('matplotlib', 'inline')  #for plots in different a window use 'qr'
 import math
 from numba import jit,prange
+from multiprocessing import Pool
 
 # In[2]: Method definitions
 """
@@ -179,7 +180,7 @@ def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayL
            U_old          = np.copy(U)
            [Up,i_kp,i_cp ]= bellman_operator(param_dim,param_fin,U, R,z_prob_mat,grid,grid_interp, i_kp, i_cp)         
            diff           = np.max(np.abs(Up-U_old))
-           if i%50==0: 
+           if i%100==0: 
                print(f"Error at iteration {i} is {diff}.")           
            if diff < tol:
                break
@@ -197,7 +198,7 @@ def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayL
             
         return [U,Kp,Cp,i_kp,i_cp]
     
-# In[5]: Bellman operator and Value iteration for Eq 8
+# Bellman operator and Value iteration for Eq 8
 def bellman_operator_V(param_dim,param_fin, V,D, i_kp, i_cp, grid,z_vec,z_prob_mat,kp_vec,cp_vec):
         """
         RHS of Eq 8
@@ -226,8 +227,8 @@ def solution_vi_V(param_dim,diff,tol,imax, D):
             V_old = np.copy(V)          
             Vp    = bellman_operator_V(param_dim,param_fin,V,D, i_kp, i_cp, grid,z_vec,z_prob_mat,kp_vec,cp_vec)
             diff = np.max(np.abs(Vp-V_old))
-            if i%50==0:
-               print(f"Error at iteration {i} is {diff}.")
+            # if i%50==0:
+            #    print(f"Error at iteration {i} is {diff}.")
             if diff < tol:
                break
             if i == imax:
@@ -235,7 +236,7 @@ def solution_vi_V(param_dim,diff,tol,imax, D):
         return [Vp]
     
 
-# In[6]: Plotting function
+# Plotting function
 def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp):
     α, β, s                         = param_manager     # Manager compensation
     δ, λ, a, θ, τ                   = param_inv         # Investment parameters
@@ -292,8 +293,8 @@ def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec
     
     plt.show()
     
-# In[7]: Simulation
-def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, ikp, icp, kinit, cinit, N, Ttot):
+# Simulation
+def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit, N, Ttot):
         """
         # Model simulation.
         # am is an instance of AgencyModel class
@@ -301,18 +302,19 @@ def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, ikp, icp, kinit, cinit, N, Ttot)
         mc  = qe.MarkovChain(z_prob_mat)
         E   = mc.simulate(ts_length=Ttot,num_reps=N).T
         
-        Ksim = np.empty((Ttot, N))
-        Ksim[0, :] = np.take(kp_vec,kinit)* np.ones((1, N))
-        Csim = np.empty((Ttot, N))
-        Csim[0, :] = np.take(cp_vec,cinit)* np.ones((1, N))   # Ask to Juan for a better ideas
-       
+        Ksim = np.zeros((Ttot, N))
+        Ksim[0, :] = np.take(k_vec,kinit)* np.ones((1, N))
+        Csim = np.zeros((Ttot, N))
+        Csim[0, :] = np.take(c_vec,cinit)* np.ones((1, N))   # Ask to Juan for a better ideas
         for n in range(N):
             for t in range(1,Ttot):
-                id_k= np.argwhere(Ksim[t-1, n] == kp_vec)
-                id_c= np.argwhere(Csim[t-1, n] == cp_vec)
+                # find previus state of nature
+                closer_k=min(enumerate(k_vec), key=lambda x: abs(Ksim[t-1, 0] - x[1]))
+                closer_c=min(enumerate(c_vec), key=lambda x: abs(Csim[t-1, 0] - x[1]))
                 id_z = E[t-1,n]
-                Ksim[t, n] = Kp[id_k[0,0],id_c[0,0], id_z]
-                Csim[t, n] = Cp[id_k[0,0],id_c[0,0], id_z]                  
+                # identify the respective policy
+                Ksim[t, n] = Kp[closer_k[0],closer_c[0], id_z] 
+                Csim[t, n] = Cp[closer_k[0],closer_c[0], id_z]                  
         """        
         print()
         print("Quick simulation check: p lb, min(psim), max(psim), p ub")
@@ -322,7 +324,7 @@ def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, ikp, icp, kinit, cinit, N, Ttot)
         """
         return [Ksim, Csim,E]
         
-# In[8]: Set variables and grids
+# In[8]: Set params
 """
 List of Parameters
     α,             # manager bonus
@@ -353,13 +355,16 @@ Packing:
     dimz, dimk, dimc, dimkp, dimcp  = param_dim         # dimensional Parameters 
 
 """
+#if __name__ == '__main__':
+    
 param_manager = (0.751/100, 0.051, 0.101/1000) # (α, β, s) 
 param_inv     = (0.130, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
-param_fin     = (0.011, 0.043)                 # (r, ϕ)
+param_fin     = (0.011, 0.043)                 # (r, ϕ=0.043)
 param_ar      = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
 param_dim     = (11,25,7,25*2,7*2)             # (dimz, dimk, dimc, dimkp, dimcp)
  
-
+# In[9] Calculate and plot policies ("Figure 1")
+# Run this cell to initialize jit methods.
 qe.tic()
 [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
 [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
@@ -367,51 +372,52 @@ qe.tic()
 [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
 qe.toc()
 
-# In[9] Calculate and plot policies ("Figure 1")
 plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp)
+# In[9] Comparative Statistics ("Figure 2")
 
-# In[9] PLot Comparative Statistics ("Figure 2")
-"""
 num_reps                            = 1
 ts_length                           = 100_000
-kinit                               = math.floor(dimk/2)
-cinit                               = math.floor(dimc/2)
-sim_ϕ_vec                           = np.linspace(0,0.25,20) #20 reps
-sim_ϕav_cash                        = np.ones(len(sim_ϕ_vec))
-# External Financing ϕ
-def run_policy():
-    for ind, sim_ϕ in  enumerate(sim_ϕ_vec):
-        firm2=AgencyModel(α,        # manager bonus
-                     β,             # manager equity share
-                     s,             # manager private benefit
-                     δ,             # capital depreciation
-                     λ,             # cost of issuing equity // (so far, not needed)
-                     a,             # capital adjustment cost
-                     θ,             # curvature production function
-                     τ,             # corporate tax rate
-                     r,             # interest rate
-                     sim_ϕ,         # cost of external finance
-                     dimz,          # dim of shock
-                     μ,             # log mean of AR process
-                     σ,             # s.d. deviation of innovation shocks
-                     ρ,             # persistence of AR process
-                     stdbound,      # standard deviation of AR process (set to 2)
-                     dimk,          # dimension of k, only works with odd numbers
-                     dimc,          # dimension of cash
-                     dimkp,         # dimension of future k
-                     dimcp)         # dimension of future cash
-        [k_vec2, kp_vec2, c_vec2, cp_vec2, kstar2]= firm2.set_vec()
-        [z_vec2, z_prob_mat2]                  = firm2.trans_matrix()
-        [R2, _]                               = firm2.rewards_grids()
-        [_,Kp2,Cp2,_,_]                         = solution_vi(1,1e-4,1_000,R2,firm2)  
-        [Ksim2, Csim2,_]                       = model_sim(z_vec2,z_prob_mat2, kp_vec2, cp_vec2, Kp2, Cp2, kinit, cinit,num_reps, ts_length)
-        Csim_ratio2                           = Csim2/(Ksim2+Csim2)       
-        sim_ϕav_cash[ind]                    = np.mean(Csim_ratio2)
-        
+kinit                               = math.floor(25/2)
+cinit                               = math.floor(7/2)
+sim_ϕ_vec                           = np.linspace(0,0.25,6) #20 reps
+sim_θ_vec                           = np.linspace(0.5,0.9,6) #20 reps
 
-        plt.plot(sim_ϕ_vec,sim_ϕav_cash  ,linestyle = 'dashed', c='b')
-        plt.show()
-    return sim_ϕav_cash
-    
-cash_stats=run_policy()
-"""
+# External Financing ϕ
+def run_stats_extfin(param_iter):
+    param_fin                            = (0.011, param_iter)                 # (r, ϕ)
+    [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
+    [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
+    [R, D]                               = rewards_grids(param_manager,param_inv, param_fin, param_ar,param_dim)
+    [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
+    [sim_K, sim_C,_]                     = model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit,num_reps, ts_length)
+    sim_Cratio                           = sim_C/(sim_K+sim_C)       
+    sim_Cratio_av                        = np.mean(sim_Cratio)      
+    return sim_Cratio_av
+
+# Production curvature θ
+def run_stats_curv(param_iter):
+    param_inv                           = (0.130, 0, 1.278, param_iter , 0.2) # (δ, λ, a, θ, τ)
+    print(param_inv)
+    [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
+    [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
+    [R, D]                               = rewards_grids(param_manager,param_inv, param_fin, param_ar,param_dim)
+    [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
+    [sim_K, sim_C,_]                     = model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit,num_reps, ts_length)
+    sim_Cratio                           = sim_C/(sim_K+sim_C)       
+    sim_Cratio_av                        = np.mean(sim_Cratio)   
+    return sim_Cratio_av
+
+pool          = Pool() 
+com_stat_cash = pool.map(run_stats_extfin, sim_ϕ_vec)
+pool.close()
+
+pool          = Pool() 
+com_stat_cash2 = pool.map(run_stats_curv, sim_θ_vec)    
+pool.close() 
+
+fig, (ax1,ax2) = plt.subplots(2,1)
+ax1.plot(sim_ϕ_vec,com_stat_cash ,linestyle = 'dashed', c='b')
+ax2.plot(sim_θ_vec,com_stat_cash2 ,linestyle = 'dashed', c='b')
+plt.show()
+
+
