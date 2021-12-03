@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import math
 from numba import jit,prange
 from multiprocessing import Pool
+from itertools import repeat
 
 # In[2]: Method definitions
 """
@@ -158,6 +159,7 @@ def bellman_operator(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,U:npt.Array
                 i_kp[i_k, i_c, i_z] = i_kc[0]
                 i_cp[i_k, i_c, i_z] = i_kc[1]
     return [U,i_kp,i_cp ]
+
 def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayLike,k_vec:npt.ArrayLike,c_vec:npt.ArrayLike,z_vec:npt.ArrayLike,kp_vec:npt.ArrayLike,cp_vec:npt.ArrayLike,diff=1,tol=1e-6,imax=1400):
         """
         # Value Iteration on Eq 6.
@@ -197,46 +199,8 @@ def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayL
             Cp[index]=cp_vec[index2]
             
         return [U,Kp,Cp,i_kp,i_cp]
-    
-# Bellman operator and Value iteration for Eq 8
-def bellman_operator_V(param_dim,param_fin, V,D, i_kp, i_cp, grid,z_vec,z_prob_mat,kp_vec,cp_vec):
-        """
-        RHS of Eq 8
-        Pending, acelerar moving reshape en Z, primer loop.
-        """
-        r, _                            = param_fin
-        dimz, dimk, dimc, dimkp, dimcp  = param_dim
-        for (i_k, k) in enumerate(k_vec):           
-            for (i_c, c) in enumerate(c_vec):
-                for (i_z, z) in enumerate(z_vec):
-                    EV                  = D[i_k, :, i_c, :, i_z] + (1/(1+r))*np.reshape([z_prob_mat[i_z, :] @ V[i_kpp,i_cpp,:] for i_kpp in range(dimkp) for i_cpp in range(dimcp)], (dimkp, dimcp))
-                    i_kc                = np.unravel_index(np.argmax(EV,axis=None),EV.shape)           # the index of the best expected value for each k,c,z combination.    
-                    V[i_k, i_c, i_z]    = EV[i_kc]                                       # update U with all the best expected values. 
-        return [V]
 
-def solution_vi_V(param_dim,diff,tol,imax, D):
-        """
-        # Value Iteration on Eq 8.
-        """
-        dimz, dimk, dimc, dimkp, dimcp  = param_dim 
-        V   = np.empty((dimkp, dimcp, dimz))
-        i_kp = np.empty((dimk, dimc, dimz))
-        i_cp = np.empty((dimk, dimc, dimz))
-        grid=CGrid(k_vec.reshape(dimk),c_vec.reshape(dimc),z_vec.reshape(dimz))
-        for i in range(imax):
-            V_old = np.copy(V)          
-            Vp    = bellman_operator_V(param_dim,param_fin,V,D, i_kp, i_cp, grid,z_vec,z_prob_mat,kp_vec,cp_vec)
-            diff = np.max(np.abs(Vp-V_old))
-            # if i%50==0:
-            #    print(f"Error at iteration {i} is {diff}.")
-            if diff < tol:
-               break
-            if i == imax:
-               print("Failed to converge!")    
-        return [Vp]
-    
-
-# Plotting function
+# Plotting Policy function
 def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp):
     α, β, s                         = param_manager     # Manager compensation
     δ, λ, a, θ, τ                   = param_inv         # Investment parameters
@@ -293,7 +257,7 @@ def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec
     
     plt.show()
     
-# Simulation
+# Simulation and Comparative Statistics
 def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit, N, Ttot):
         """
         # Model simulation.
@@ -323,6 +287,42 @@ def model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit, N, Ttot):
         print()
         """
         return [Ksim, Csim,E]
+    
+def run_stats(variable,param_iter):
+    global param_fin
+    global param_inv
+    global param_manager
+    global param_ar
+    
+    if variable =='ϕ':
+        param_fin                   = (0.011, param_iter)                 # (r, ϕ)
+    elif variable=='θ':     
+        param_inv                   = (0.130, 0, 1.278, param_iter, 0.2) # (δ, λ, a, θ, τ)
+    elif variable=='β':
+        param_manager               = (0.751/100,param_iter, 0.101/1000) # (α, β, s)
+    elif variable=='σ':
+        param_ar                    = (0, param_iter, 0.713, 4)           # (μ, σ, ρ, stdbound)
+    elif variable=='a':     
+        param_inv                   = (0.130, 0, param_iter, 0.773 , 0.2) # (δ, λ, a, θ, τ)
+    elif variable=='α':
+        param_manager               = (param_iter,0.051, 0.101/1000) # (α, β, s)
+    elif variable=='ρ':
+        param_ar                    = (0, 0.262, param_iter, 4)           # (μ, σ, ρ, stdbound)
+    elif variable=='δ':     
+        param_inv                   = (param_iter, 0, 1.278,0.773 , 0.2) # (δ, λ, a, θ, τ)
+    elif variable=='s':
+        param_manager               = (0.751/100,0.051, param_iter) # (α, β, s)
+    else:
+        print("not known variable")
+        breakpoint()
+    [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
+    [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
+    [R, D]                               = rewards_grids(param_manager,param_inv, param_fin, param_ar,param_dim)
+    [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
+    [sim_K, sim_C,_]                     = model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit,num_reps, ts_length)
+    sim_Cratio                           = sim_C/(sim_K+sim_C)       
+    sim_Cratio_av                        = np.mean(sim_Cratio)      
+    return sim_Cratio_av
         
 # In[8]: Set params
 """
@@ -375,49 +375,64 @@ qe.toc()
 plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp)
 # In[9] Comparative Statistics ("Figure 2")
 
-num_reps                            = 1
-ts_length                           = 100_000
-kinit                               = math.floor(25/2)
-cinit                               = math.floor(7/2)
-sim_ϕ_vec                           = np.linspace(0,0.25,6) #20 reps
-sim_θ_vec                           = np.linspace(0.5,0.9,6) #20 reps
+num_reps  = 1
+ts_length = 100_000
+kinit = math.floor(25/2)
+cinit = math.floor(7/2)
+ϕ_vec = np.linspace(0,0.25,10) #20 reps
+θ_vec = np.linspace(0.5,0.9,10) #20 reps
+β_vec = np.linspace(0.01,0.1,10) #20 reps
 
-# External Financing ϕ
-def run_stats_extfin(param_iter):
-    param_fin                            = (0.011, param_iter)                 # (r, ϕ)
-    [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
-    [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
-    [R, D]                               = rewards_grids(param_manager,param_inv, param_fin, param_ar,param_dim)
-    [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
-    [sim_K, sim_C,_]                     = model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit,num_reps, ts_length)
-    sim_Cratio                           = sim_C/(sim_K+sim_C)       
-    sim_Cratio_av                        = np.mean(sim_Cratio)      
-    return sim_Cratio_av
+σ_vec = np.linspace(0.1,0.5,10) #20 reps
+a_vec = np.linspace(0,1.5,10) #20 reps
+α_vec = np.linspace(0,0.01,10) #20 reps
 
-# Production curvature θ
-def run_stats_curv(param_iter):
-    param_inv                           = (0.130, 0, 1.278, param_iter , 0.2) # (δ, λ, a, θ, τ)
-    print(param_inv)
-    [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_dim)
-    [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
-    [R, D]                               = rewards_grids(param_manager,param_inv, param_fin, param_ar,param_dim)
-    [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,k_vec,c_vec,z_vec,kp_vec,cp_vec)
-    [sim_K, sim_C,_]                     = model_sim(z_vec,z_prob_mat, kp_vec, cp_vec, Kp, Cp, kinit, cinit,num_reps, ts_length)
-    sim_Cratio                           = sim_C/(sim_K+sim_C)       
-    sim_Cratio_av                        = np.mean(sim_Cratio)   
-    return sim_Cratio_av
+ρ_vec = np.linspace(0.5,0.75,10) #20 reps
+δ_vec = np.linspace(0.05,0.2,10) #20 reps
+s_vec = np.linspace(0,0.02/100,10) #20 reps
 
-pool          = Pool() 
-com_stat_cash = pool.map(run_stats_extfin, sim_ϕ_vec)
-pool.close()
+# First column of plots
+with Pool() as pool:
+    com_stat_cash = pool.starmap(run_stats, zip(repeat('ϕ'),ϕ_vec))
+with Pool() as pool:
+    com_stat_cash2 = pool.starmap(run_stats, zip(repeat('θ'),θ_vec))
+with Pool() as pool:
+    com_stat_cash3 = pool.starmap(run_stats, zip(repeat('β'),β_vec))
+# Second column of plots   
+with Pool() as pool:
+    com_stat_cash4 = pool.starmap(run_stats, zip(repeat('σ'),σ_vec))
+with Pool() as pool:
+    com_stat_cash5 = pool.starmap(run_stats, zip(repeat('a'),a_vec))
+with Pool() as pool:
+    com_stat_cash6 = pool.starmap(run_stats, zip(repeat('α'),α_vec))
+# Third column of plots   
+with Pool() as pool:
+    com_stat_cash7 = pool.starmap(run_stats, zip(repeat('ρ'),ρ_vec))
+with Pool() as pool:
+    com_stat_cash8 = pool.starmap(run_stats, zip(repeat('δ'),δ_vec))
+with Pool() as pool:
+    com_stat_cash9 = pool.starmap(run_stats, zip(repeat('s'),s_vec))
 
-pool          = Pool() 
-com_stat_cash2 = pool.map(run_stats_curv, sim_θ_vec)    
-pool.close() 
 
-fig, (ax1,ax2) = plt.subplots(2,1)
-ax1.plot(sim_ϕ_vec,com_stat_cash ,linestyle = 'dashed', c='b')
-ax2.plot(sim_θ_vec,com_stat_cash2 ,linestyle = 'dashed', c='b')
+fig, ((ax1, ax4, ax7), (ax2, ax5, ax8), (ax3, ax6, ax9)) = plt.subplots(3,3,sharey=True,figsize=(15, 15))
+ax1.plot(ϕ_vec,com_stat_cash ,linestyle = 'dashed', c='b')
+ax1.set_xlabel("ϕ")
+ax2.plot(θ_vec,com_stat_cash2 ,linestyle = 'dashed', c='b')
+ax2.set_xlabel("θ")
+ax3.plot(β_vec,com_stat_cash3 ,linestyle = 'dashed', c='b')
+ax3.set_xlabel("ϕ")
+ax4.plot(σ_vec,com_stat_cash4 ,linestyle = 'dashed', c='b')
+ax4.set_xlabel("σ")
+ax5.plot(a_vec,com_stat_cash5 ,linestyle = 'dashed', c='b')
+ax5.set_xlabel("a")
+ax6.plot(α_vec,com_stat_cash6 ,linestyle = 'dashed', c='b')
+ax6.set_xlabel("α")
+ax7.plot(ρ_vec,com_stat_cash7 ,linestyle = 'dashed', c='b')
+ax7.set_xlabel("ρ")
+ax8.plot(δ_vec,com_stat_cash8 ,linestyle = 'dashed', c='b')
+ax8.set_xlabel("δ")
+ax9.plot(s_vec,com_stat_cash9 ,linestyle = 'dashed', c='b')
+ax9.set_xlabel("s")
 plt.show()
 
 
