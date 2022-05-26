@@ -1,11 +1,11 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py:percent
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
+#       format_name: light
+#       format_version: '1.5'
 #       jupytext_version: 1.13.7
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
@@ -13,7 +13,6 @@
 #     name: python3
 # ---
 
-# %% [markdown]
 # # Replication: Agency Conflicts and Cash: Estimates from a Dynamic Model
 # Author: Marcelo Ortiz (UPF & BSE).
 #
@@ -50,10 +49,8 @@
 #     μ, σ, ρ, stdbound               = param_ar          # AR Parameters
 #     dimz, dimk, dimc, dimkp, dimcp  = param_dim         # dimensional Parameters
 
-# %% [markdown]
 # # Import and Settings
 
-# %%
 import math
 import numpy as np
 import numpy.typing as npt
@@ -66,13 +63,11 @@ import matplotlib.pyplot as plt
 # %matplotlib inline
 # %autosave 0
 
-# %% [markdown]
 # # 1. Replication of Optimal Policies ("Figure 1")
 
-# %% [markdown]
 # ## 1.1 Grids and Value iteration functions
 
-# %%
+# +
 def set_vec(param_inv,param_fin, param_dim, param_manager,z_vec):   
     """
     Compute the vector of capital stock (around the steady-state) and cash (up to k steady state).
@@ -80,19 +75,18 @@ def set_vec(param_inv,param_fin, param_dim, param_manager,z_vec):
     """
     δ, _, a, θ, τ                = param_inv
     r, _                         = param_fin
-    _, dimk, dimc, dimkp, dimcp  = param_dim
-    α, β, s                      = param_manager 
-    kstar = ((θ*(1-τ))/(r*(1+a*δ)-δ*τ+δ+0.5*a*δ**2))**(1/(1-θ))
-    #kstar = ((θ*(1-τ))/(r+δ))**(1/(1-θ))
-    #kstar=2083.6801320704803
-    k_min    = ((θ*(1-τ)*z_vec[0])/(r*(1+a*δ)-δ*τ+δ+0.5*a*δ**2))**(1/(1-θ)) # A guess for k_min?
-    k_max    = ((θ*(1-τ)*(np.mean(z_vec)+0.5*np.std(z_vec)))/(r*(1+a*δ)-δ*τ+δ+0.5*a*δ**2))**(1/(1-θ)) # A guess for k_max?
-    # Set up the vectors
+    dimz, dimk, dimc, dimkp, dimcp  = param_dim
+    α, β, s                      = param_manager
     
-    k_vec  = np.reshape(np.linspace(k_min, k_max,dimk),(dimk,1))
-    kp_vec = np.reshape(np.linspace(k_min, k_max,dimkp),(dimkp,1))
-    c_vec  = np.reshape(np.linspace(0.0, 0.5*k_max, dimc),(dimc,1))
-    cp_vec = np.reshape(np.linspace(0.0, 0.5*k_max, dimcp),(dimcp,1))
+    mid_z =math.floor(dimz/2)
+    kstar = ((θ*(1-τ)*z_vec[mid_z])/(r+δ))**(1/(1-θ)) 
+    #kstar=2083.6801320704803
+    
+    # Set up the vectors
+    k_vec  = np.reshape(np.linspace(0.01*kstar, 10*kstar,dimk),(dimk,1))
+    kp_vec = np.reshape(np.linspace(0.01*kstar, 10*kstar,dimkp),(dimkp,1))
+    c_vec  = np.reshape(np.linspace(0.0, kstar, dimc),(dimc,1))
+    cp_vec = np.reshape(np.linspace(0.0, kstar, dimcp),(dimcp,1))
     return  [k_vec, kp_vec, c_vec, cp_vec, kstar]    
 
 def trans_matrix(param_ar,param_dim):
@@ -127,29 +121,19 @@ def rewards_grids(param_manager,param_inv, param_fin,param_dim,z_vec,k_vec,c_vec
     inv:float
     d:float
     rw:float
-    kp:float
-    k:float
-    z:float
-    cp:float
-    c:float
     print("Computing reward matrix")
     for i_k in prange(dimk):
         for i_kp in range(dimkp):
             for i_c in range(dimc):
                 for i_cp in range(dimcp):
                     for i_z in range(dimz):
-                        kp  = np.take(kp_vec[i_kp],0)
-                        k   = np.take(k_vec[i_k],0)
-                        z   = np.take(z_vec[i_z],0)
-                        cp  = np.take(cp_vec[i_cp],0)
-                        c   = np.take(c_vec[i_c],0)
-                        inv = kp-(1-δ)*k                          
-                        d   = (1-τ)*(1-(α+s))*z*k**θ + δ*k*τ - inv - 0.5*a*((inv/k)**2)*k - cp + c*(1+r*(1-τ))*(1-s)        
+                        inv                          = np.take(kp_vec[i_kp]-(1-δ)*k_vec[i_k],0)                          
+                        d                            = np.take((1-τ)*(1-(α+s))*z_vec[i_z]*k_vec[i_k]**θ + δ*k_vec[i_k] *τ - inv - 0.5*a*((inv/k_vec[i_k] )**2)*k_vec[i_k]-cp_vec[i_cp] + c_vec[i_c]*(1+r*(1-τ))*(1-s),0)        
                         if d>=0:
                             D[i_k, i_kp, i_c, i_cp, i_z] = d
                         else:
                             D[i_k, i_kp, i_c, i_cp, i_z] = d*(1+ϕ)
-                        rw                              = (α+s)*z*k**θ + s*c*(1+r) + β*D[i_k, i_kp, i_c, i_cp, i_z]   
+                        rw                              = np.take((α+s)*z_vec[i_z]*k_vec[i_k]**θ + s*c_vec[i_c]*(1+r) + β*D[i_k, i_kp, i_c, i_cp, i_z] ,0)   
                         R[i_k, i_kp, i_c, i_cp, i_z]   = rw 
     print("Computing reward matrix - Done")                  
     return [R, D]
@@ -200,7 +184,7 @@ def bellman_operator(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,U:npt.Array
                 i_cp[i_k, i_c, i_z] = i_kc[1]
     return [U,i_kp,i_cp ]
 
-def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayLike,z_prob_mat:npt.ArrayLike,k_vec:npt.ArrayLike,c_vec:npt.ArrayLike,z_vec:npt.ArrayLike,kp_vec:npt.ArrayLike,cp_vec:npt.ArrayLike,diff=1,tol=1e-6,imax=10_00):
+def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayLike,z_prob_mat:npt.ArrayLike,k_vec:npt.ArrayLike,c_vec:npt.ArrayLike,z_vec:npt.ArrayLike,kp_vec:npt.ArrayLike,cp_vec:npt.ArrayLike,diff=1,tol=1e-6,imax=2_000):
         """
         # Value Iteration on Eq 6.
         """
@@ -216,21 +200,22 @@ def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayL
                     new_point=np.array([kp_vec[i_kpp], cp_vec[i_cpp], z_vec[i_zp]]).reshape((1,3))
                     grid_interp = np.append(grid_interp,new_point,axis=0)
         #grid_interp = [np.array([kp_vec[i_kpp], cp_vec[i_cpp], z_vec[i_zp]]).reshape((1,3)) for i_kpp in range(dimkp) for i_cpp in range(dimcp) for i_zp in range(dimz)]
-        print("Iteration start")                   
+        print("Value iteration: start")                   
         for i in range(imax):
             U_old          = np.copy(U)
             [Up,i_kp,i_cp ]= bellman_operator(param_dim,param_fin,U, R,z_prob_mat,grid,grid_interp, i_kp, i_cp)         
-            diff           = np.max(np.abs(Up-U_old))
+            diff           = np.max(np.abs(Up-U_old))            
             if i==1: 
                 print(f"Error at iteration {i} is {diff}.") 
             if i==500: 
                 print(f"Error at iteration {i} is {diff}.")           
+            if i == imax:
+                print("Failed to converge!")        
             if diff < tol:
                 print(f"Solution found at iteration {i}.")   
                 break
-            if i == imax:
-                print("Failed to converge!")        
         # Evaluating the optimal policies using the indexes obtained in the iterations.
+        print("Value iteration: done")  
         Kp=np.zeros((dimk, dimc, dimz))
         Cp=np.zeros((dimk, dimc, dimz))
         for index,value in  np.ndenumerate(i_kp):
@@ -243,30 +228,30 @@ def value_iteration(param_dim:npt.ArrayLike,param_fin:npt.ArrayLike,R:npt.ArrayL
         return [U,Kp,Cp,i_kp,i_cp]
 
 
-# %% [markdown]
+# -
+
 # ## 1.2 Computation Optimal Policies 
 
-# %%
 param_manager     = (0.751/100, 0.051, 0.101/1000) # (α, β, s) 
 param_inv         = (0.130, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
-param_fin         = (0.011, 0.043)                 # (r, ϕ=0.043)
+param_fin         = (0.011, 0.043)                 # (r, ϕ)
 param_ar          = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
-_nk               = 5                              # intermediate points in the capital grid
-_nc               = 5                              # intermediate points in the cash grid
+_nk               = 10                             # intermediate points in the capital grid
+_nc               = 10                             # intermediate points in the cash grid
 (dimz, dimk, dimc)=(11,25,7)
 param_dim         = (dimz,dimk,dimc,dimk*_nk,dimc*_nc)         # wrapping dimensional parameters: (dimz, dimk, dimc, dimkp, dimcp)
 
-# %% tags=[]
+# + tags=[]
 [z_vec, z_prob_mat]                  = trans_matrix(param_ar,param_dim)
 [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_fin, param_dim, param_manager,z_vec)
 [R, D]                               = rewards_grids(param_manager,param_inv, param_fin,param_dim,z_vec,k_vec,c_vec)
 [Up,Kp,Cp,i_kp,i_cp]                 = value_iteration(param_dim,param_fin,R,z_prob_mat,k_vec,c_vec,z_vec,kp_vec,cp_vec)
 
 
-# %% [markdown]
+# -
+
 # ## 1.3 Ploting "Figure 1"
 
-# %%
 # Plotting Policy function
 def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp):
     α, β, s                         = param_manager     # Manager compensation
@@ -274,10 +259,10 @@ def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec
     r, ϕ                            = param_fin         # Financing Parameters                                       
     dimz, dimk, dimc, dimkp, dimcp  = param_dim         # dimensional Parameters
     
-    I_p=np.empty((dimk, dimc,dimz))        
-    CRatio_P=np.empty((dimk,dimc,dimz))
-    CF_p=np.empty((dimk, dimc,dimz))
-    F_p=np.empty((dimk, dimc,dimz))
+    I_p      =np.empty((dimk, dimc,dimz))        
+    CRatio_P =np.empty((dimk,dimc,dimz))
+    CF_p     =np.empty((dimk, dimc,dimz))
+    F_p      =np.empty((dimk, dimc,dimz))
     
     for z in range(dimz):
         for c in range(dimc):
@@ -326,21 +311,20 @@ def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec
     fig.savefig("Figure1.png", bbox_inches='tight', dpi=600)
 
 
-# %%
 plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,c_vec,Kp,Cp)
 
 
-# %% [markdown]
 # # 2. Replication of Comparative Statistics ("Figure 2")
 
-# %% [markdown]
 # ## 2.1 Simulation function
 
-# %%
-def model_sim(E,kstar ,kp_vec, cp_vec, Kp, Cp, N, Ttot,Terg=200):
+def model_sim(z_vec,k_vec,c_vec,z_prob_mat,kstar,kp_vec, cp_vec, Kp, Cp, N, Ttot,Terg=200):
         """
         # Model simulation.
         """
+        mc  = qe.MarkovChain(z_prob_mat)
+        E   = mc.simulate(ts_length=Ttot,num_reps=N).T
+
         Ksim = np.zeros((Ttot, N))
         Csim = np.zeros((Ttot, N))
         # the simulations start with the value of the central element in k_vec and c_vec,
@@ -355,20 +339,20 @@ def model_sim(E,kstar ,kp_vec, cp_vec, Kp, Cp, N, Ttot,Terg=200):
                 given_value=Ksim[t-1, n]
                 search_list=k_vec
                 closest_k=min(search_list, key=absolute_difference_function)
-                closest_k_posicion=np.take(np.where(search_list==closest_k),0)
+                closest_k_position=np.take(np.where(search_list==closest_k),0)
                 # find previous C
                 given_value=Csim[t-1, n]
                 search_list=c_vec
                 closest_c=min(search_list, key=absolute_difference_function)
-                closest_c_posicion=np.take(np.where(search_list==closest_c),0)
+                closest_c_position=np.take(np.where(search_list==closest_c),0)
                 # find previus shock
                 id_z = E[t-1,n]
                 # compute the respective policy depending of the position in t-1
-                Ksim[t, n] = Kp[closest_k_posicion,closest_c_posicion, id_z] 
-                Csim[t, n] = Cp[closest_k_posicion,closest_c_posicion, id_z]
+                Ksim[t, n] = Kp[closest_k_position,closest_c_position, id_z] 
+                Csim[t, n] = Cp[closest_k_position,closest_c_position, id_z]
         # Remove the burning period
-        Ksim = Ksim[(Terg+1):-1, :]
-        Csim = Csim[(Terg+1):-1, :]
+        #Ksim=Ksim[(Terg):-1, :]
+        #Csim = Csim[(Terg):-1, :]
         
         print()
         print("Quick simulation check: p lb, min(psim), max(psim), p ub \n")
@@ -379,34 +363,24 @@ def model_sim(E,kstar ,kp_vec, cp_vec, Kp, Cp, N, Ttot,Terg=200):
         return [Ksim, Csim,E]
 
 
-# %% [markdown]
-# Fast check of simulation boundaries:
+# **Fast check** simulation boundaries:
 
-# %%
-N                =50
-Ttot             =1_000
-mc               = qe.MarkovChain(z_prob_mat)
-E                = mc.simulate(ts_length=Ttot,num_reps=N).T
-[sim_K, sim_C,E] = model_sim(E,kstar,kp_vec, cp_vec, Kp, Cp,N, Ttot)
+[sim_K, sim_C,E]                     = model_sim(z_vec,k_vec,c_vec,z_prob_mat,kstar,kp_vec, cp_vec, Kp, Cp,N=1, Ttot=10_000)
 
-# %% [markdown]
 # ## 2.2 Computation comparative statistics
 # The output of this cell is quite long since it shows some prints for the value iteration process and then more prints to check whether the simulations are touching the borders of the grids.
 #
 # To see the figure, scroll down to the bottom.
 
-# %%
 def run_comparative_stats(variable,param_iter):
     param_manager     = (0.751/100, 0.051, 0.101/1000) # (α, β, s) 
     param_inv         = (0.130, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
-    param_fin         = (0.011, 0.043)                 # (r, ϕ=0.043)
+    param_fin         = (0.011, 0.043)                 # (r, ϕ)
     param_ar          = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
     _nk               = 5                              # intermediate points in the capital grid
     _nc               = 5                              # intermediate points in the cash grid
     (dimz, dimk, dimc)=(11,25,7)
     param_dim         = (dimz,dimk,dimc,dimk*_nk,dimc*_nc)         # wrapping dimensional parameters: (dimz, dimk, dimc, dimkp, dimcp)
-    N                 = 50
-    Ttot              = 1_000
     
     if variable =='ϕ':
         param_fin                   = (0.011, param_iter)                 # (r, ϕ)
@@ -433,34 +407,34 @@ def run_comparative_stats(variable,param_iter):
     [k_vec, kp_vec, c_vec, cp_vec, kstar]= set_vec(param_inv, param_fin, param_dim, param_manager,z_vec)   
     [R, D]                               = rewards_grids(param_manager,param_inv, param_fin,param_dim,z_vec,k_vec,c_vec)
     [Up,Kp,Cp,i_kp,_]                    = value_iteration(param_dim,param_fin,R,z_prob_mat,k_vec,c_vec,z_vec,kp_vec,cp_vec)
-    mc                                   = qe.MarkovChain(z_prob_mat)
-    E                                    = mc.simulate(ts_length=Ttot,num_reps=N).T
-    [sim_K, sim_C,_]                     = model_sim(E,kstar,kp_vec, cp_vec, Kp, Cp,N, Ttot)
+    [sim_K, sim_C,_]                     = model_sim(z_vec,k_vec,c_vec,z_prob_mat,kstar,kp_vec, cp_vec, Kp, Cp,num_reps, ts_length)
     sim_Cratio                           = sim_C/(sim_K+sim_C)       
     sim_Cratio_av                        = np.mean(sim_Cratio)
 
     return sim_Cratio_av
 
 
-# %% tags=[]
-num_values_per_param=5
+# + tags=[]
+num_reps  = 1
+ts_length = 100_000
+num_simulation_per_param=5
 
 # Financing parameters
-ϕ_vec = np.linspace(0,0.25,num_values_per_param) 
+ϕ_vec = np.linspace(0,0.25,num_simulation_per_param) 
 # Investment parameters
-θ_vec = np.linspace(0.5,0.9,num_values_per_param) 
-a_vec = np.linspace(0,1.5,num_values_per_param) 
-δ_vec = np.linspace(0.05,0.2,num_values_per_param) 
+θ_vec = np.linspace(0.5,0.9,num_simulation_per_param) 
+a_vec = np.linspace(0,1.5,num_simulation_per_param) 
+δ_vec = np.linspace(0.05,0.2,num_simulation_per_param) 
 # Manager parameters
-β_vec = np.linspace(0.01,0.1,num_values_per_param) 
-α_vec = np.linspace(0,0.01,num_values_per_param) 
-s_vec = np.linspace(0,0.02/100,num_values_per_param)
+β_vec = np.linspace(0.01,0.1,num_simulation_per_param) 
+α_vec = np.linspace(0,0.01,num_simulation_per_param) 
+s_vec = np.linspace(0,0.02/100,num_simulation_per_param)
 # AR parameters
-σ_vec = np.linspace(0.1,0.5,num_values_per_param)  
-ρ_vec = np.linspace(0.5,0.75,num_values_per_param)
+σ_vec = np.linspace(0.1,0.5,num_simulation_per_param)  
+ρ_vec = np.linspace(0.5,0.75,num_simulation_per_param)
 
-# %% tags=[]
-print("First column of plots: ϕ θ β")
+# + tags=[]
+print("---- First column of plots: ϕ θ β ----")
 with Pool() as pool:
     com_stat_cash = pool.starmap(run_comparative_stats, zip(repeat('ϕ'),ϕ_vec))     
 with Pool() as pool2:
@@ -468,7 +442,7 @@ with Pool() as pool2:
 with Pool() as pool3:
     com_stat_cash3 = pool3.starmap(run_comparative_stats, zip(repeat('β'),β_vec))   
 
-print("Second column of plots: σ a α")
+print("---- Second column of plots: σ a α ----")
 with Pool() as pool4:
     com_stat_cash4 = pool4.starmap(run_comparative_stats, zip(repeat('σ'),σ_vec))   
 with Pool() as pool5:
@@ -476,40 +450,38 @@ with Pool() as pool5:
 with Pool() as pool6:
     com_stat_cash6 = pool6.starmap(run_comparative_stats, zip(repeat('α'),α_vec))  
 
-print("Third column of plots: ρ δ s")
+print("---- Third column of plots: ρ δ s----")
 with Pool() as pool7:
     com_stat_cash7 = pool7.starmap(run_comparative_stats, zip(repeat('ρ'),ρ_vec)) 
 with Pool() as pool8:
     com_stat_cash8 = pool8.starmap(run_comparative_stats, zip(repeat('δ'),δ_vec)) # problem: opposite slope
 with Pool() as pool9:
     com_stat_cash9 = pool9.starmap(run_comparative_stats, zip(repeat('s'),s_vec)) 
+# -
 
-# %% [markdown]
 # ## 2.3 Plotting "Figure 2"
 
-# %%
 F2=fig, ((ax1, ax4, ax7), (ax2, ax5, ax8), (ax3, ax6, ax9)) = plt.subplots(3,3,sharey=True,figsize=(15, 15))
 ax1.plot(ϕ_vec,com_stat_cash ,linestyle = 'dashed', c='b')
-ax1.set_xlabel("ϕ")
+ax1.set_xlabel("Cost of External Financing: ϕ")
 ax2.plot(θ_vec,com_stat_cash2 ,linestyle = 'dashed', c='b')
-ax2.set_xlabel("θ")
+ax2.set_xlabel("Curvature of the Profit Function: θ")
 ax3.plot(β_vec,com_stat_cash3 ,linestyle = 'dashed', c='b')
-ax3.set_xlabel("β")
+ax3.set_xlabel("Managerial Ownership: β")
 ax4.plot(σ_vec,com_stat_cash4 ,linestyle = 'dashed', c='b')
-ax4.set_xlabel("σ")
+ax4.set_xlabel("Volatility of Innovation to ln(ε): σ")
 ax5.plot(a_vec,com_stat_cash5 ,linestyle = 'dashed', c='b')
-ax5.set_xlabel("a")
+ax5.set_xlabel("Convex Cost of Capital Adjustment: a")
 ax6.plot(α_vec,com_stat_cash6 ,linestyle = 'dashed', c='b')
-ax6.set_xlabel("α")
+ax6.set_xlabel("Profit−sharing: α (in bps)")
 ax7.plot(ρ_vec,com_stat_cash7 ,linestyle = 'dashed', c='b')
-ax7.set_xlabel("ρ")
+ax7.set_xlabel("Serial Correlation of ln(ε): ρ")
 ax8.plot(δ_vec,com_stat_cash8 ,linestyle = 'dashed', c='b')
-ax8.set_xlabel("δ")
+ax8.set_xlabel("Depreciation: δ")
 ax9.plot(s_vec,com_stat_cash9 ,linestyle = 'dashed', c='b')
-ax9.set_xlabel("s")
+ax9.set_xlabel("Tunneling: s (in bps)")
 plt.show()
 fig.savefig("Figure2.png", bbox_inches='tight', dpi=600)
-# -
 
 # !jupyter nbconvert  "Nikolov&Whited2014.ipynb" --to html
 
