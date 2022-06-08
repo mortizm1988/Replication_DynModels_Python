@@ -115,6 +115,7 @@ def trans_matrix(param_ar, param_dim):
     """
     Set the State vector for the productivity shocks Z and transition matrix.
     Dimension: z_vec =[dimZ , 1]; z_prob_mat=[dimz , dimZ] // Remember, sum(z_prob_mat[i,:])=1.
+    *** Pending improvements: clearly las transposition is inefficient.
     """
     μ, σ, ρ, stdbound = param_ar
     dimz, dimk, *_ = param_dim
@@ -125,6 +126,7 @@ def trans_matrix(param_ar, param_dim):
     z_vec = z_vec.reshape(dimz, 1)
     z_vec = np.e**(z_vec)
     z_prob_mat = Pi.reshape(dimz, dimz)
+    z_prob_mat = np.transpose(z_prob_mat)
     return [z_vec, z_prob_mat]
 
 
@@ -171,8 +173,8 @@ def rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, 
     print("Computing reward matrix - Done \n")
     return [R, D]
 
-# @jit(nopython=True,parallel=False)  # it does not run with jit since this package seems to not recognice scypy.interpn().
-def continuation_value(param_dim: npt.ArrayLike, U: npt.ArrayLike, z_prob_mat: npt.ArrayLike, grid: npt.ArrayLike, grid_interp: npt.ArrayLike):
+@jit(nopython=True,parallel=False)  # it does not run with jit since this package seems to not recognice scypy.interpn().
+def continuation_value(param_dim: npt.ArrayLike, U: npt.ArrayLike, z_prob_mat: npt.ArrayLike, Uinter: npt.ArrayLike):
     """
     Compute "Continuation Value" for every possible future state of nature (kp,cp,z).
     The "continuation value" is defined as: E[U(kp,cp,zp)]=sum{U(kp,cp,zp)*Prob(zp,p)}
@@ -180,13 +182,10 @@ def continuation_value(param_dim: npt.ArrayLike, U: npt.ArrayLike, z_prob_mat: n
     """
     dimz, dimk, dimc, dimkp, dimcp = param_dim         # dimensional Parameters
     cont_value = np.zeros((dimkp, dimcp, dimz))
-    ztrans = np.transpose(z_prob_mat)
-    Uinter = interpn(grid, U, grid_interp)
-    Uinter = Uinter.reshape((dimkp, dimcp, dimz))
     for ind_z in range(dimz):
         for i_kpp in range(dimkp):
             for i_cpp in range(dimcp):
-                cont_value[i_kpp, i_cpp, ind_z] = np.dot(ztrans[:, ind_z], Uinter[i_kpp, i_cpp, :])
+                cont_value[i_kpp, i_cpp, ind_z] = np.dot(z_prob_mat[:, ind_z], Uinter[i_kpp, i_cpp, :])
     return cont_value
 
 
@@ -200,7 +199,9 @@ def bellman_operator(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, Upol: n
     """
     dimz, dimk, dimc, dimkp, dimcp = param_dim         # dimensional Parameters
     r, _ = param_fin
-    c_value = continuation_value(param_dim, Upol, z_prob_mat, grid, grid_interp)
+    Uinter = interpn(grid, Upol, grid_interp)
+    Uinter = Uinter.reshape((dimkp, dimcp, dimz))
+    c_value = continuation_value(param_dim, Upol, z_prob_mat, Uinter)
     RHS = np.empty((dimkp, dimcp))
     for (i_z, z) in enumerate(z_vec):
         for (i_k, k) in enumerate(k_vec):
@@ -274,7 +275,7 @@ param_dim = (dimz, dimk, dimc, dimk*_nk, dimc*_nc)
 start = time()
 [Upol, Kpol, Cpol, i_kpol, i_cpol] = value_iteration(param_dim, param_fin, R, z_prob_mat, k_vec, c_vec, z_vec, kp_vec, cp_vec, grid_points, grid_to_interp)
 end = time()
-print(f'It took {(end - start):,.2f} seconds!')
+print(f'It took {(end - start):,.2f} seconds!') # 204 seconds (3 min).
 
 # %% [markdown]
 # ## 1.3 Ploting "Figure 1"
@@ -356,9 +357,7 @@ def plot_policy_function(param_manager, param_inv, param_fin, param_dim, z_vec, 
     plt.show()
     fig.savefig("Figure1.png", bbox_inches='tight', dpi=600)
 # %%
-plot_policy_function(param_manager, param_inv, param_fin,
-                     param_dim, z_vec, k_vec, c_vec, Kpol, Cpol)
-
+plot_policy_function(param_manager, param_inv, param_fin,param_dim, z_vec, k_vec, c_vec, Kpol, Cpol)
 
 # %% [markdown]
 # # 2. Replication of Comparative Statistics ("Figure 2")
@@ -371,7 +370,7 @@ plot_policy_function(param_manager, param_inv, param_fin,
 
 def model_sim(z_vec, k_vec, c_vec, z_prob_mat, kstar, Kp, Cp, N, Ttot, Terg=200):
     """Model simulation."""
-    mc = qe.MarkovChain(z_prob_mat)
+    mc = qe.MarkovChain(np.transpose(z_prob_mat))
     E = mc.simulate(ts_length=Ttot, num_reps=N).T
     #sim_z = z_vec[E].reshape((Ttot, N))
     Ksim = np.zeros((Ttot, N))
@@ -487,16 +486,6 @@ def run_comparative_stats(variable, param_iter):
 
     return sim_Cratio_av
 # %% [markdown]
-# ## Testing and timing the comparative statistics function for a single point. It takes almost 10 min per point.
-
-
-# %%
-start = time()
-output = run_comparative_stats("a", 0.1)
-end = time()
-print(f'It took {(end - start):,.2f} seconds!')
-
-# %% [markdown]
 # ## Now, setting up the parallel processing.
 
 # %% tags=[]
@@ -581,6 +570,14 @@ fig.savefig("Figure2.png", bbox_inches='tight', dpi=600)
 # %%
 # !jupyter nbconvert  "Nikolov&Whited2014.ipynb" --to html
 
+# %% [markdown]
+# ## Testing and timing the comparative statistics function for a single point.
+
+# %%
+start = time()
+output = run_comparative_stats("a", 0.1)
+end = time()
+print(f'It took {(end - start):,.2f} seconds!') # it takes 223 seconds (almost 4 min) per single point. Not bad, withoug jit it takes 10 min.
 # %% PROFILING
 import cProfile
 import pstats
