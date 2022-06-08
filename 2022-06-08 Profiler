@@ -1,0 +1,204 @@
+Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     1038  128.226    0.124  446.379    0.430 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:193(bellman_operator)
+     1038   90.950    0.088  294.766    0.284 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:175(continuation_value)
+146129064/146129039   87.532    0.000  108.378    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+    71129   49.744    0.001   49.744    0.001 {built-in method numpy.array}
+142725000   41.444    0.000  130.205    0.000 <__array_function__ internals>:2(dot)
+  1427250   15.598    0.000   15.598    0.000 {method 'argmax' of 'numpy.ndarray' objects}
+     1038   12.210    0.012   16.551    0.016 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2534(_evaluate_linear)
+142725000    9.507    0.000    9.507    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:716(dot)
+     1038    3.031    0.003    5.349    0.005 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2554(_find_indices)
+     3114    2.292    0.001    2.292    0.001 {method 'searchsorted' of 'numpy.ndarray' objects}
+        1    1.649    1.649    1.649    1.649 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:131(rewards_grids)
+  1427250    1.085    0.000   19.281    0.000 <__array_function__ internals>:2(argmax)
+     1038    0.982    0.001   73.580    0.071 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2575(interpn)
+  1883871    0.843    0.000   19.584    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:52(_wrapfunc)
+  1427250    0.802    0.000   17.291    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:1119(argmax)
+     1038    0.681    0.001   22.664    0.022 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2485(__call__)
+  1427250    0.605    0.000    4.102    0.000 <__array_function__ internals>:2(unravel_index)
+   599400    0.579    0.000    0.763    0.000 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:402(<lambda>)
+    39960    0.400    0.000    1.163    0.000 {built-in method builtins.min}
+  1923835    0.362    0.000    0.362    0.000 {built-in method builtins.getattr}
+   452461    0.357    0.000    0.357    0.000 {method 'take' of 'numpy.ndarray' objects}
+     1038    0.242    0.000    0.242    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2540(<listcomp>)
+  1427250    0.199    0.000    0.199    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:1115(_argmax_dispatcher)
+   452461    0.186    0.000    0.979    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:94(take)
+   599404    0.184    0.000    0.184    0.000 {built-in method builtins.abs}
+  1427250    0.166    0.000    0.166    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:1001(unravel_index)
+   452461    0.149    0.000    1.286    0.000 <__array_function__ internals>:2(take)
+    19746    0.145    0.000    0.145    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        1    0.140    0.140    1.141    1.141 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:110(<listcomp>)
+        1    0.124    0.124    1.640    1.640 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:373(model_sim)
+    39960    0.050    0.000    0.184    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:39(_wrapit)
+    64872    0.042    0.000    4.152    0.000 <__array_function__ internals>:2(where)
+   452461    0.040    0.000    0.040    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:90(_take_dispatcher)
+     6228    0.040    0.000    0.050    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/function_base.py:1153(diff)
+    19740    0.035    0.000    0.191    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:70(_wrapreduction)
+     2081    0.032    0.000    0.032    0.000 {built-in method numpy.zeros}
+     1038    0.023    0.000    0.093    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2444(__init__)
+    61767    0.021    0.000    0.103    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_asarray.py:23(asarray)
+    18692    0.019    0.000    0.193    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2355(all)
+        1    0.018    0.018  446.430  446.430 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:219(value_iteration)
+     8322    0.016    0.000   49.672    0.006 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_asarray.py:110(asanyarray)
+    18692    0.016    0.000    0.225    0.000 <__array_function__ internals>:2(all)
+    64872    0.012    0.000    0.012    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:321(where)
+     2076    0.008    0.000   49.675    0.024 {built-in method scipy.interpolate.interpnd._ndim_coords_from_arrays}
+    19740    0.008    0.000    0.008    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:71(<dictcomp>)
+     3128    0.005    0.000    0.005    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+     6228    0.005    0.000    0.061    0.000 <__array_function__ internals>:2(diff)
+     3114    0.005    0.000    2.303    0.001 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:1281(searchsorted)
+     1046    0.004    0.000    0.004    0.000 {built-in method numpy.empty}
+    18692    0.004    0.000    0.004    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2350(_all_dispatcher)
+     3114    0.004    0.000    2.311    0.001 <__array_function__ internals>:2(searchsorted)
+    20841    0.004    0.000    0.004    0.000 {built-in method builtins.len}
+     1044    0.003    0.000    0.007    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numerictypes.py:359(issubdtype)
+     1040    0.003    0.000    0.020    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2617(amax)
+    19744    0.003    0.000    0.003    0.000 {method 'items' of 'dict' objects}
+    12456    0.003    0.000    0.003    0.000 {method 'append' of 'list' objects}
+     6234    0.003    0.000    0.003    0.000 {built-in method numpy.core._multiarray_umath.normalize_axis_index}
+     2088    0.003    0.000    0.004    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numerictypes.py:285(issubclass_)
+     5194    0.002    0.000    0.002    0.000 {built-in method builtins.hasattr}
+     1038    0.002    0.000    0.005    0.000 <__array_function__ internals>:2(can_cast)
+     1038    0.001    0.000    0.009    0.000 <__array_function__ internals>:2(copy)
+     3154    0.001    0.000    0.001    0.000 {built-in method builtins.issubclass}
+     1040    0.001    0.000    0.023    0.000 <__array_function__ internals>:2(amax)
+     6228    0.001    0.000    0.001    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/function_base.py:1149(_diff_dispatcher)
+     1038    0.001    0.000    0.002    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2685(<listcomp>)
+     1038    0.001    0.000    0.002    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/interpolate/interpolate.py:2482(<listcomp>)
+     1038    0.001    0.000    0.004    0.000 <__array_function__ internals>:2(transpose)
+     3114    0.001    0.000    0.001    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:1277(_searchsorted_dispatcher)
+     1038    0.001    0.000    0.001    0.000 {method 'transpose' of 'numpy.ndarray' objects}
+     1038    0.001    0.000    0.003    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:602(transpose)
+     2752    0.001    0.000    0.001    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/index_tricks.py:586(__next__)
+     1038    0.001    0.000    0.007    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/function_base.py:715(copy)
+       34    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/zmq/sugar/socket.py:474(send)
+        1    0.000    0.000  450.862  450.862 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:449(run_comparative_stats)
+     1038    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/function_base.py:711(_copy_dispatcher)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:576(_generate_sample_paths)
+     1040    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2612(_amax_dispatcher)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numba/core/serialize.py:29(_numba_unpickle)
+        1    0.000    0.000    0.000    0.000 {method 'random_sample' of 'numpy.random.mtrand.RandomState' objects}
+     1038    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:478(can_cast)
+     1038    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:598(_transpose_dispatcher)
+     2752    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/function_base.py:23(linspace)
+       34    0.000    0.000    0.001    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/ipykernel/iostream.py:206(schedule)
+       26    0.000    0.000    0.001    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/ipykernel/iostream.py:500(write)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/approximation.py:138(tauchen)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:168(__init__)
+       12    0.000    0.000    0.001    0.000 {built-in method builtins.print}
+       34    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/threading.py:1113(is_alive)
+        1    0.000    0.000    1.142    1.142 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:85(set_vec)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:2344(within_tol)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:194(_var)
+       26    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/ipykernel/iostream.py:418(_is_master_process)
+       26    0.000    0.000    0.000    0.000 {built-in method posix.getpid}
+        1    0.000    0.000    0.001    0.001 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:440(simulate_indices)
+      8/4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:745(recurser)
+       34    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/threading.py:1059(_wait_for_tstate_lock)
+       34    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/ipykernel/iostream.py:96(_event_pipe)
+       34    0.000    0.000    0.000    0.000 {method 'acquire' of '_thread.lock' objects}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:2264(isclose)
+        1    0.000    0.000    0.000    0.000 {method 'randint' of 'numpy.random.mtrand.RandomState' objects}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:358(_get_formatdict)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:478(_array2string)
+        3    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:65(_count_reduce_items)
+        5    0.000    0.000    0.000    0.000 {built-in method numpy.arange}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:516(array2string)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/Documents/Dropbox/Research Papers/OffshoreFinance Structural/Work/Code_Marcelo/Rep_Nikolov_Whited/Nikolov&Whited2014.py:114(trans_matrix)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:161(_mean)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:409(_get_format_function)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/_weakrefset.py:39(_remove)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_ufunc_config.py:32(seterr)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:60(_make_options_dict)
+       26    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/ipykernel/iostream.py:437(_schedule_flush)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/approximation.py:205(_fill_tauchen)
+        4    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:461(wrapper)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_ufunc_config.py:132(geterr)
+       40    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:1865(isscalar)
+        5    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(linspace)
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2256(any)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:1500(_array_str_implementation)
+        3    0.000    0.000    0.000    0.000 {method 'any' of 'numpy.generic' objects}
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/cProfile.py:117(__exit__)
+        7    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(result_type)
+        1    0.000    0.000    0.000    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+        4    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+        7    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(reshape)
+        5    0.000    0.000    0.000    0.000 {method 'astype' of 'numpy.ndarray' objects}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:709(_extendLine_pretty)
+        5    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(ndim)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/index_tricks.py:583(__init__)
+        3    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:148(ones)
+       34    0.000    0.000    0.000    0.000 {method 'append' of 'collections.deque' objects}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3301(mean)
+       34    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/threading.py:529(is_set)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:2186(allclose)
+        5    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(any)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:259(_std)
+        2    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(mean)
+        7    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:199(reshape)
+        3    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(copyto)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:736(_formatArray)
+        4    0.000    0.000    0.000    0.000 {built-in method numpy.seterrobj}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:225(state_values)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_ufunc_config.py:433(__enter__)
+        2    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(allclose)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:418(cdfs)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:695(_extendLine)
+        1    0.000    0.000    0.001    0.001 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:528(simulate)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2742(amin)
+        2    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(amin)
+        2    0.000    0.000    0.000    0.000 {method 'sum' of 'numpy.ndarray' objects}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_ufunc_config.py:438(__exit__)
+        8    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:383(indirect)
+        2    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(isclose)
+        3    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:53(_any)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_ufunc_config.py:429(__init__)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3428(std)
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:65(<dictcomp>)
+        6    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        4    0.000    0.000    0.000    0.000 {built-in method builtins.max}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/scipy/sparse/base.py:1205(isspmatrix)
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3106(ndim)
+        8    0.000    0.000    0.000    0.000 {built-in method numpy.geterrobj}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/abc.py:117(__instancecheck__)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/util/random.py:10(check_random_state)
+        2    0.000    0.000    0.000    0.000 {built-in method _abc._abc_instancecheck}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:387(<listcomp>)
+        1    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(cumsum)
+        1    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(prod)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2912(prod)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/_methods.py:45(_sum)
+        1    0.000    0.000    0.000    0.000 <__array_function__ internals>:2(std)
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2251(_any_dispatcher)
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3102(_ndim_dispatcher)
+        5    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/function_base.py:18(_linspace_dispatcher)
+        7    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:194(_reshape_dispatcher)
+        4    0.000    0.000    0.000    0.000 {method 'splitlines' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2446(cumsum)
+        8    0.000    0.000    0.000    0.000 {method 'keys' of 'dict' objects}
+        7    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:644(result_type)
+        4    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+        4    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        4    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        4    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        4    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        5    0.000    0.000    0.000    0.000 {built-in method _operator.index}
+        4    0.000    0.000    0.000    0.000 {method 'update' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/quantecon/markov/core.py:221(state_values)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3296(_mean_dispatcher)
+        3    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/multiarray.py:1054(copyto)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        4    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/arrayprint.py:384(<lambda>)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:2182(_allclose_dispatcher)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2737(_amin_dispatcher)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/numeric.py:2260(_isclose_dispatcher)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3423(_std_dispatcher)
+        2    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/lib/index_tricks.py:600(__iter__)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2907(_prod_dispatcher)
+        1    0.000    0.000    0.000    0.000 /home/marcelo/anaconda3/lib/python3.9/site-packages/numpy/core/fromnumeric.py:2442(_cumsum_dispatcher)
