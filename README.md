@@ -3,4 +3,4 @@ Author: Marcelo Ortiz M.
 
 Python 3.8.
 
-The notebook is just a copy of the script but with more comments and saving the plots in the folder.
+Run `wrapper.py` to generate figures 1 and 2.
