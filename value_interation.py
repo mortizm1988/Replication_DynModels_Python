@@ -150,17 +150,17 @@ def value_iteration(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, R: npt.A
     i_kpol = np.empty((dimk, dimc, dimz), dtype=float)
     i_cpol = np.empty((dimk, dimc, dimz), dtype=float)
 
-    print("Iteration start \n")
+    print("Optimal policies: Iteration start \n")
     for i in range(imax):
         U_old = np.copy(Upol)
         Upol, i_kpol, i_cpol = bellman_operator(param_dim, param_fin, Upol, R, z_prob_mat, z_vec,k_vec, c_vec, grid_points, grid_to_interp, i_kpol, i_cpol)
         diff = np.max(np.abs(Upol-U_old))
         if i == 1:
-            print(f"Error at iteration {i} is {diff:,.2f}.")
+            print(f"Error at iteration {i} is {diff:,.2f}.\n")
         if i % 300 == 0:
-            print(f"Error at iteration {i} is {diff:,.2f}.")
+            print(f"Error at iteration {i} is {diff:,.2f}.\n")
         if diff < tol:
-            print(f"Solution found at iteration {i}.")
+            print(f"Solution found at iteration {i}.\n")
             break
         if i == imax:
             print("Failed to converge!")
@@ -176,6 +176,30 @@ def value_iteration(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, R: npt.A
         Cpol[index] = cp_vec[index2]
 
     return Upol, Kpol, Cpol, i_kpol, i_cpol
+
+
+def value_iteration_firm_value(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, D: npt.ArrayLike, z_prob_mat: npt.ArrayLike, k_vec: npt.ArrayLike, c_vec: npt.ArrayLike, z_vec: npt.ArrayLike, i_kpol, i_cpol, grid_points, grid_to_interp, diff=1, tol=1e-6, imax=10_000):
+    """
+    Value Iteration on Eq 8.
+    *** Pending improvements: why ndenumerate and not numerate?
+    """
+    dimz, dimk, dimc, dimkp, dimcp = param_dim
+    Vpol = np.zeros((dimk, dimc, dimz))
+
+    print("Firm Value: Iteration start \n")
+    for i in range(imax):
+        V_old = np.copy(Vpol)
+        Vpol, *_ = bellman_operator(param_dim, param_fin, Vpol, D, z_prob_mat, z_vec,k_vec, c_vec, grid_points, grid_to_interp, i_kpol, i_cpol)
+        diff = np.max(np.abs(Vpol-V_old))
+       
+        if diff < tol:
+            print(f"Solution found at iteration {i}.\n")
+            break
+        if i == imax:
+            print("Failed to converge!")
+  
+
+    return Vpol
 
 def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,kstar,c_vec,Kp,Cp):
     α, β, s                         = param_manager     # Manager compensation
@@ -246,7 +270,7 @@ def solve_and_figure_1():
     
     z_vec, z_prob_mat = trans_matrix(param_ar, param_dim)
     k_vec, kp_vec, c_vec, cp_vec, kstar, grid_points, grid_to_interp = set_vec(param_inv, param_fin, param_dim, param_manager, z_vec)
-    R, D = rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec, cp_vec)
+    R, _ = rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec, cp_vec)
     
-    Upol, Kpol, Cpol, i_kpol, i_cpol = value_iteration(param_dim, param_fin, R, z_prob_mat, k_vec, c_vec, z_vec, kp_vec, cp_vec, grid_points, grid_to_interp)
+    Upol, Kpol, Cpol, *_ = value_iteration(param_dim, param_fin, R, z_prob_mat, k_vec, c_vec, z_vec, kp_vec, cp_vec, grid_points, grid_to_interp)
     plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,kstar,c_vec,Kpol,Cpol)

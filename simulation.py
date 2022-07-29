@@ -1,21 +1,39 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import quantecon as qe
-from scipy.interpolate import interpn
 from multiprocessing import Pool
 from itertools import repeat
 import matplotlib.pyplot as plt
 
 import value_interation as vi
 
-def model_sim(param_dim,param_ar,kstar,z_prob_mat ,k_vec,c_vec,z_vec, kp_vec, cp_vec, Kp, Cp, N=20, Ttot=5_000,Terg=200):
+def model_sim(param_,kstar,z_prob_mat,z_vec,k_vec,c_vec, Kp, Cp,Vp, N=50, Ttot=2_000,Terg=200):
         """
         # Model simulation.
+        Pending: 
+            (1) see comments of Whited about how to improve simulation speed.
         """
+        param_manager = param_[0:3]   # (α, β, s)
+        param_inv = param_[3:8]  # (δ, λ, a, θ, τ)
+        param_fin = param_[8:10]                 # (r, ϕ=0.043)
+        param_ar = param_[10:14]           # (μ, σ, ρ, stdbound)
+        α, β, s                         = param_manager     # Manager compensation
+        δ, λ, a, θ, τ                   = param_inv         # Investment parameters
+        r, ϕ                            = param_fin         # Financing Parameters  
+        μ, σ, ρ, stdbound = param_ar
+        
         mc = qe.MarkovChain(np.transpose(z_prob_mat))
-        E = mc.simulate(ts_length=Ttot, num_reps=N).T
+        E = mc.simulate(ts_length=Ttot, num_reps=N,random_state=123).T
         Ksim = np.zeros((Ttot, N))
         Csim = np.zeros((Ttot, N))
+        Vsim = np.zeros((Ttot, N))
+        I_k = np.zeros((Ttot, N))
+        Dsim = np.zeros((Ttot, N))
+        Fsim = np.zeros((Ttot, N))
+        Op_Inc=np.zeros((Ttot, N))
+        C_ratio=np.zeros((Ttot, N))
+
+
         # the simulations start with the value of the central element in k_vec and c_vec,
         Ksim[0, :]=kstar*np.ones((1, N))
         # interpolations [it does not work, because in some simulations "previous_state" falls out the grid points]
@@ -56,10 +74,36 @@ def model_sim(param_dim,param_ar,kstar,z_prob_mat ,k_vec,c_vec,z_vec, kp_vec, cp
                 # compute the respective policy depending of the position in t-1
                 Ksim[t, n] = Kp[closest_k_position,closest_c_position, id_z] 
                 Csim[t, n] = Cp[closest_k_position,closest_c_position, id_z]
+                Vsim[t, n] = Vp[closest_k_position,closest_c_position, id_z]
+                
+                ## other variables
+                z=z_vec[E[t,n]]
+                k=Ksim[t,n]
+                k_lag=Ksim[t-1,n]
+                c=Csim[t,n]
+                c_lag=Csim[t-1,n]
+                I         = k-(1-δ)*k_lag
+                I_k[t,n]  = I/k_lag
+                Op_Inc[t,n] = (z*k**θ)/(c+k)
+                Dsim[t,n]    = (1-τ)*(1-(α+s))*z*k**θ + δ*k*τ - I  - 0.5*a*((I_k[t,n] )**2)*k - c +c_lag*(1+r*(1-τ))*(1-s)
+                Fsim[t,n]    = Dsim[t,n] /(c+k) if Dsim[t,n] >=0 else Dsim[t,n] *(1+ϕ)/(c+k)          
+        C_ratio=Csim/(Ksim+Csim)
+        TobinsQ=Vsim/(Ksim+Csim)  
+
+        Dsim[Dsim>0]
+        Dsim=Dsim/(Ksim+Csim)
+        Fsim[Fsim<0]
+        Fsim=-Fsim/(Ksim+Csim) 
+        
         # Remove the burning period
         Ksim = Ksim[(Terg+1):-1, :]
         Csim = Csim[(Terg+1):-1, :]
-        
+        I_k = I_k[(Terg+1):-1, :]
+        Dsim = Dsim[(Terg+1):-1, :]
+        Fsim = Fsim[(Terg+1):-1, :]
+        Op_Inc = Op_Inc[(Terg+1):-1, :]
+        C_ratio=C_ratio[(Terg+1):-1, :]
+        TobinsQ=TobinsQ[(Terg+1):-1, :]
         
         print()
         print("Quick simulation check: p lb, min(psim), max(psim), p ub \n")
@@ -67,7 +111,7 @@ def model_sim(param_dim,param_ar,kstar,z_prob_mat ,k_vec,c_vec,z_vec, kp_vec, cp
         print(f"C = {c_vec[0]} {np.min(Csim):,.2f} {np.max(Csim):,.2f} {c_vec[-1]} \n")
         print()
        
-        return Ksim, Csim
+        return Ksim, Csim, E, I_k, Dsim, Fsim, Op_Inc,C_ratio,TobinsQ
 
 def run_comparative_stats(variable,param_iter):
     
@@ -75,6 +119,7 @@ def run_comparative_stats(variable,param_iter):
     param_inv         = (0.130, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
     param_fin         = (0.011, 0.043)                 # (r, ϕ=0.043)
     param_ar          = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
+    param_            = param_manager+param_inv+param_fin+ param_ar
     _nk               = 10                              # intermediate points in the capital grid
     _nc               = 10                              # intermediate points in the cash grid
     (dimc, dimk, dimz) = (11, 25, 5)
@@ -103,11 +148,12 @@ def run_comparative_stats(variable,param_iter):
     z_vec, z_prob_mat                  = vi.trans_matrix(param_ar,param_dim)   
     k_vec, kp_vec, c_vec, cp_vec, kstar,grid_points,grid_to_interp= vi.set_vec(param_inv, param_fin, param_dim, param_manager,z_vec)
     R, D                               = vi.rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec, cp_vec)  
-    Upol,Kpol,Cpol,i_kpol,i_cpol       = vi.value_iteration(param_dim,param_fin,R,z_prob_mat,k_vec,c_vec,z_vec,kp_vec,cp_vec,grid_points,grid_to_interp)
-    sim_K, sim_C                         = model_sim(param_dim,param_ar,kstar,z_prob_mat ,k_vec,c_vec,z_vec, kp_vec, cp_vec, Kpol, Cpol)
+    Upol,Kpol,Cpol, i_kpol, i_cpol     = vi.value_iteration(param_dim,param_fin,R,z_prob_mat,k_vec,c_vec,z_vec,kp_vec,cp_vec,grid_points,grid_to_interp)
+    Vpol= vi.value_iteration_firm_value(param_dim, param_fin, D, z_prob_mat, k_vec, c_vec, z_vec, i_kpol, i_cpol, grid_points, grid_to_interp)
+    sim_K, sim_C, *_                         = model_sim(param_,kstar,z_prob_mat, z_vec ,k_vec,c_vec, Kpol, Cpol, Vpol)
     sim_Cratio                           = sim_C/(sim_K+sim_C)       
     sim_Cratio_av                        = np.mean(sim_Cratio)
-    print(f"average cash ratio {variable}= {param_iter}: {sim_Cratio_av}")
+    print(f"average cash ratio {variable}= {param_iter}: {sim_Cratio_av}\n")
     return sim_Cratio_av
 
 def parallel_simulation(num_values_per_param):
@@ -125,7 +171,7 @@ def parallel_simulation(num_values_per_param):
     σ_vec = np.linspace(0.1, 0.5, num_values_per_param)
     ρ_vec = np.linspace(0.5, 0.75, num_values_per_param)
     
-    print("--- First column of plots: ϕ θ β---")
+    print("--- First column of plots: ϕ θ β---\n")
     with Pool() as pool:
         com_stat_cash = pool.starmap(
             run_comparative_stats, zip(repeat('ϕ'), ϕ_vec))
@@ -136,7 +182,7 @@ def parallel_simulation(num_values_per_param):
         com_stat_cash3 = pool3.starmap(
             run_comparative_stats, zip(repeat('β'), β_vec))
 
-    print("--- Second column of plots: σ a α ---")
+    print("--- Second column of plots: σ a α ---\n")
     with Pool() as pool4:
         com_stat_cash4 = pool4.starmap(
             run_comparative_stats, zip(repeat('σ'), σ_vec))
@@ -147,7 +193,7 @@ def parallel_simulation(num_values_per_param):
         com_stat_cash6 = pool6.starmap(
             run_comparative_stats, zip(repeat('α'), α_vec))
 
-    print("--- Third column of plots: ρ δ s ---")
+    print("--- Third column of plots: ρ δ s ---\n")
     with Pool() as pool7:
         com_stat_cash7 = pool7.starmap(
             run_comparative_stats, zip(repeat('ρ'), ρ_vec))
@@ -158,7 +204,7 @@ def parallel_simulation(num_values_per_param):
         com_stat_cash9 = pool9.starmap(
             run_comparative_stats, zip(repeat('s'), s_vec))
     
-    F2 = fig, ((ax1, ax4, ax7), (ax2, ax5, ax8), (ax3, ax6, ax9)) = plt.subplots(3, 3, sharey=True, figsize=(15, 15))
+    fig, ((ax1, ax4, ax7), (ax2, ax5, ax8), (ax3, ax6, ax9)) = plt.subplots(3, 3, sharey=True, figsize=(15, 15))
     ax1.plot(ϕ_vec, com_stat_cash, linestyle='dashed', c='b')
     ax1.set_xlabel("ϕ")
     ax2.plot(θ_vec, com_stat_cash2, linestyle='dashed', c='b')

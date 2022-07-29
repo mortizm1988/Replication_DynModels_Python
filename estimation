@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+still in progress
+to do: check in the paper which parameters we aim to estimate.
+"""
+import numpy as np
+import value_interation as vi
+import simulation as sim
+
+def Q(moments, real_moments = [0.133, 0.004, 0.936, 0.131, 0.003, 0.549, 0.148, 0.003, 0.707, 1.949, 0.016, 0.024, 0.001, 0.039, 0.001, 0.111], W = I ):
+    return np.transpose(moments-real_moments)*W*(moments-real_moments)
+
+def obj(θ_):
+    am = AgencyModel(θ_);
+    U, Kp, Cp,  i_kp, i_cp, R, D = vfi(am; H=20, verbose=false);
+    V = compute_value_function(D, i_kp, i_cp, am);
+    moments = simulate_economy(am, Kp, Cp, V, D);
+    return Q(moments)
+
+def run_smm():
+    bounds = [0.5 0.0   0.04 0.0     0.130 0.2 0.011 0.5  0.1 0.0  0.0; # Lower bounds,
+              0.8 1/100 0.1  2/10000 0.130 0.2 0.011 0.75 0.4 0.25 1.5]
+    result = optimize(obj, bounds, PSO(), logger = (status) -> println(status.best_sol))
+    print(resul)
