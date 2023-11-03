@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
-from numba import jit
+from numba import jit, types, prange, test
+from numba.extending import overload
+
 import numpy as np
 import numpy.typing as npt
 import quantecon as qe
 from scipy.interpolate import interpn
+from interpolation.splines import UCGrid, CGrid, nodes
+from interpolation.splines import eval_linear
 import matplotlib.pyplot as plt
 import math
+import utils as utils
+from time import time
+from multiprocessing import Pool
+from itertools import repeat
 
+import cProfile
+import pstats
+import snakeviz
+from time import time
 
 def set_vec(param_inv, param_fin, param_dim, param_manager, z_vec):
     """
@@ -31,7 +43,7 @@ def set_vec(param_inv, param_fin, param_dim, param_manager, z_vec):
     cp_vec = np.reshape(np.linspace(0.0, 0.5*k_max, dimcp), (dimcp, 1))
 
     grid_points = (np.reshape(k_vec, k_vec.size), np.reshape(c_vec, c_vec.size), np.reshape(z_vec, z_vec.size))
-    grid_to_interp = [[np.take(kp, 0), np.take(cp, 0), np.take(z, 0)] for kp in kp_vec for cp in cp_vec for z in z_vec]
+    grid_to_interp = np.array([[np.take(kp, 0), np.take(cp, 0), np.take(z, 0)] for kp in kp_vec for cp in cp_vec for z in z_vec])
     return k_vec, kp_vec, c_vec, cp_vec, kstar, grid_points, grid_to_interp
 
 
@@ -54,7 +66,7 @@ def trans_matrix(param_ar, param_dim):
     return z_vec, z_prob_mat
 
 
-@jit(nopython=True, parallel=False)
+@jit(nopython=True, parallel=False, cache=False)
 def rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec,cp_vec):
     """
     Compute the manager's and shareholders' cash-flows  R and D, respectively,
@@ -97,48 +109,67 @@ def rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, 
     print("Computing reward matrix - Done \n")
     return R, D
 
-@jit(nopython=True,parallel=False)  # it does not run with jit since this package seems to not recognice scypy.interpn().
-def continuation_value(param_dim: npt.ArrayLike, U: npt.ArrayLike, z_prob_mat: npt.ArrayLike, Uinter: npt.ArrayLike):
+@jit(nopython=True,parallel=True, cache=False)  
+def continuation_value(param_dim, U, z_prob_mat, Uinter)->float:
     """
     Compute "Continuation Value" for every possible future state of nature (kp,cp,z).
     The "continuation value" is defined as: E[U(kp,cp,zp)]=sum{U(kp,cp,zp)*Prob(zp,p)}
-    *** Pending improvements: matrix multiplication instead of a double loop.
+    *** last change: "prange".
     """
     dimz, dimk, dimc, dimkp, dimcp = param_dim         # dimensional Parameters
     cont_value = np.zeros((dimkp, dimcp, dimz))
-    for ind_z in range(dimz):
+    for ind_z in prange(dimz):
         for i_kpp in range(dimkp):
             for i_cpp in range(dimcp):
                 cont_value[i_kpp, i_cpp, ind_z] = np.dot(z_prob_mat[:, ind_z], Uinter[i_kpp, i_cpp, :])
     return cont_value
 
+@jit(nopython=True,parallel=False,cache=False)
+def my_unravel_index(index, shape):
+    sizes = np.zeros(len(shape), dtype=np.int64)
+    result = np.zeros((1,len(shape)), dtype=np.int64)
+    sizes[-1] = 1
+    for i in range(len(shape) - 2, -1, -1):
+        sizes[i] = sizes[i + 1] * shape[i + 1]
+    remainder = index
+    for i in range(len(shape)):
+        result[0][i] = remainder // sizes[i]
+        remainder %= sizes[i]
+    result2=(result[0][0],result[0][1])
+    return result2
 
-def bellman_operator(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, Upol: npt.ArrayLike, R: npt.ArrayLike, z_prob_mat: npt.ArrayLike,z_vec:npt.ArrayLike,k_vec:npt.ArrayLike, c_vec:npt.ArrayLike ,grid: npt.ArrayLike, grid_interp: npt.ArrayLike, i_kpol: npt.ArrayLike, i_cpol: npt.ArrayLike):
+#@jit(nopython=False,parallel=False, cache=False)
+def bellman_operator(param_dim, param_fin, Upol, R, c_value, i_kpol, i_cpol):
     """
     Second, identify max policy and save it.
     For each current state of nature (k,c,z), find the policy {kp,cp} that maximizes RHS: U(k,c,z) + E[U(kp,cp,zp)].
     Once found it, update the value of U in this current state of nature with the one generated with the optimal policy
     and save the respective optimal policy (kp,cp) for each state of nature (k,c,z).
-    *** Pending improvements: something faster than "enumerate"?
+    *** last changes: "pranges", and "argmax". Muy lento con  @jit.  
     """
     dimz, dimk, dimc, dimkp, dimcp = param_dim         # dimensional Parameters
     r, _ = param_fin
-    Uinter = interpn(grid, Upol, grid_interp)
-    Uinter = Uinter.reshape((dimkp, dimcp, dimz))
-    c_value = continuation_value(param_dim, Upol, z_prob_mat, Uinter)
     RHS = np.empty((dimkp, dimcp))
-    for (i_z, z) in enumerate(z_vec):
-        for (i_k, k) in enumerate(k_vec):
-            for (i_c, c) in enumerate(c_vec):
-                RHS = R[i_k, :, i_c, :, i_z] + (1/(1+r))*c_value[:, :, i_z]
-                # the index of the best expected value for each k,c,z combination.
-                i_kc = np.unravel_index(np.argmax(RHS, axis=None), RHS.shape)
-                # update U with all the best expected values.
-                Upol[i_k, i_c, i_z] = RHS[i_kc]
-                i_kpol[i_k, i_c, i_z] = i_kc[0]
-                i_cpol[i_k, i_c, i_z] = i_kc[1]
+    best_index=np.zeros((1,2))
+    df:float=(1/(1+r))
+        
+    for i_z in range(dimz):            
+        for i_k in range(dimk):
+            for i_c in range(dimc):
+                RHS = R[i_k, :, i_c, :, i_z]+ df*c_value[:, :, i_z]                 
+                # Upol[i_k, i_c, i_z] =np.max(RHS)
+                # best_index= np.where(RHS == Upol[i_k, i_c, i_z] )  # 0.62 con jit, 1,76 con paralell.
+                # i_kpol[i_k, i_c, i_z]  = best_index[0][0] 
+                # i_cpol[i_k, i_c, i_z]  = best_index[1][0]
+                
+                # este no corre con @jit por funcion unravel_index
+                # best_index=my_unravel_index(np.argmax(RHS, axis=None),RHS.shape) #0.26, 0.98 with jit.
+                best_index=np.unravel_index(np.argmax(RHS, axis=None), RHS.shape) # 0.16, not possible with jit.
+                Upol[i_k, i_c, i_z]=RHS[best_index]
+                i_kpol[i_k, i_c, i_z]  = best_index[0]
+                i_cpol[i_k, i_c, i_z]  = best_index[1]  
+                
     return Upol, i_kpol, i_cpol
-
 
 def value_iteration(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, R: npt.ArrayLike, z_prob_mat: npt.ArrayLike, k_vec: npt.ArrayLike, c_vec: npt.ArrayLike, z_vec: npt.ArrayLike, kp_vec: npt.ArrayLike, cp_vec: npt.ArrayLike, grid_points, grid_to_interp, diff=1, tol=1e-6, imax=10_000):
     """
@@ -147,14 +178,19 @@ def value_iteration(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, R: npt.A
     """
     dimz, dimk, dimc, dimkp, dimcp = param_dim
     Upol = np.zeros((dimk, dimc, dimz))
-    i_kpol = np.empty((dimk, dimc, dimz), dtype=float)
-    i_cpol = np.empty((dimk, dimc, dimz), dtype=float)
-
+    i_kpol = np.zeros((dimk, dimc, dimz), dtype=float)
+    i_cpol = np.zeros((dimk, dimc, dimz), dtype=float)
+    
     print("Optimal policies: Iteration start \n")
     for i in range(imax):
         U_old = np.copy(Upol)
-        Upol, i_kpol, i_cpol = bellman_operator(param_dim, param_fin, Upol, R, z_prob_mat, z_vec,k_vec, c_vec, grid_points, grid_to_interp, i_kpol, i_cpol)
-        diff = np.max(np.abs(Upol-U_old))
+        Uinter = eval_linear(grid_points, Upol, grid_to_interp) 
+        #Uinter = interpn(grid, Upol, grid_interp)  
+        Uinter = Uinter.reshape((dimkp, dimcp, dimz))
+        c_value = continuation_value(param_dim, Upol, z_prob_mat, Uinter)    
+        Upol2, i_kpol2, i_cpol2 = bellman_operator(param_dim, param_fin, Upol, R,c_value, i_kpol, i_cpol)
+        #Upol2, i_kpol2, i_cpol2=j.bellman_operator(Upol, R, c_value, i_kpol, i_cpol, z_vec, k_vec, c_vec, param_fin)
+        diff = np.max(np.abs(Upol2-U_old))
         if i == 1:
             print(f"Error at iteration {i} is {diff:,.2f}.\n")
         if i % 300 == 0:
@@ -167,15 +203,15 @@ def value_iteration(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, R: npt.A
     # Evaluating the optimal policies using the indexes obtained in the iterations.
     Kpol = np.zeros((dimk, dimc, dimz))
     Cpol = np.zeros((dimk, dimc, dimz))
-    for index, value in np.ndenumerate(i_kpol):
+    for index, value in np.ndenumerate(i_kpol2):
         index2 = int(value)
         # 2022-06-02 changed from kp_vec to k_vec. The same in the following loop with c_vec.
         Kpol[index] = kp_vec[index2]
-    for index, value in np.ndenumerate(i_cpol):
+    for index, value in np.ndenumerate(i_cpol2):
         index2 = int(value)
         Cpol[index] = cp_vec[index2]
 
-    return Upol, Kpol, Cpol, i_kpol, i_cpol
+    return Upol2, Kpol, Cpol, i_kpol2, i_cpol2
 
 
 def value_iteration_firm_value(param_dim: npt.ArrayLike, param_fin: npt.ArrayLike, D: npt.ArrayLike, z_prob_mat: npt.ArrayLike, k_vec: npt.ArrayLike, c_vec: npt.ArrayLike, z_vec: npt.ArrayLike, i_kpol, i_cpol, grid_points, grid_to_interp, diff=1, tol=1e-6, imax=10_000):
@@ -189,7 +225,11 @@ def value_iteration_firm_value(param_dim: npt.ArrayLike, param_fin: npt.ArrayLik
     print("Firm Value: Iteration start \n")
     for i in range(imax):
         V_old = np.copy(Vpol)
-        Vpol, *_ = bellman_operator(param_dim, param_fin, Vpol, D, z_prob_mat, z_vec,k_vec, c_vec, grid_points, grid_to_interp, i_kpol, i_cpol)
+        Vinter = eval_linear(grid_points, Vpol, grid_to_interp) 
+        #Uinter = interpn(grid, Upol, grid_interp)  
+        Vinter = Vinter.reshape((dimkp, dimcp, dimz))
+        c_value = continuation_value(param_dim, Vpol, z_prob_mat, Vinter) 
+        Vpol, *_ = bellman_operator(param_dim, param_fin, Vpol, D, c_value, i_kpol, i_cpol)
         diff = np.max(np.abs(Vpol-V_old))
        
         if diff < tol:
@@ -198,7 +238,6 @@ def value_iteration_firm_value(param_dim: npt.ArrayLike, param_fin: npt.ArrayLik
         if i == imax:
             print("Failed to converge!")
   
-
     return Vpol
 
 def plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,kstar,c_vec,Kp,Cp):
@@ -274,3 +313,35 @@ def solve_and_figure_1():
     
     Upol, Kpol, Cpol, *_ = value_iteration(param_dim, param_fin, R, z_prob_mat, k_vec, c_vec, z_vec, kp_vec, cp_vec, grid_points, grid_to_interp)
     plot_policy_function(param_manager,param_inv,param_fin,param_dim,z_vec,k_vec,kstar,c_vec,Kpol,Cpol)
+    
+if __name__== '__main__':
+    
+    param_manager = (0.751/100, 0.051, 0.101/1000)  # (α, β, s)
+    param_inv = (0.13, 0, 1.278, 0.773, 0.2)  # (δ, λ, a, θ, τ)
+    param_fin = (0.011, 0.043)                 # (r, ϕ=0.043)
+    param_ar = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
+    _nk = 10                             # intermediate points in the capital grid
+    _nc = 10                             # intermediate points in the cash grid
+    (dimc, dimk, dimz) = (11, 25, 5)
+    dimkp=dimk*_nk
+    dimcp=dimc*_nc
+    param_dim = (dimz, dimk, dimc,dimkp,dimcp )
+    
+    z_vec, z_prob_mat = trans_matrix(param_ar, param_dim)
+    k_vec, kp_vec, c_vec, cp_vec, kstar, grid_points, grid_to_interp = set_vec(param_inv, param_fin, param_dim, param_manager, z_vec)
+    R, _ = rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec, cp_vec)
+    
+    Upol = np.zeros((dimk, dimc, dimz))
+    i_kpol = np.empty((dimk, dimc, dimz), dtype=float)
+    i_cpol = np.empty((dimk, dimc, dimz), dtype=float)
+
+    U_old = np.copy(Upol)
+    Uinter = eval_linear(grid_points, Upol, grid_to_interp) 
+    #Uinter = interpn(grid, Upol, grid_interp)  
+    Uinter = Uinter.reshape((dimkp, dimcp, dimz))
+    c_value = continuation_value(param_dim, Upol, z_prob_mat, Uinter)
+    
+    start=time()
+    Upol, i_kpol, i_cpol = bellman_operator(param_dim, param_fin, Upol, R, c_value, i_kpol, i_cpol)
+    end=time()
+    print(end-start)

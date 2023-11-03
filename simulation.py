@@ -7,20 +7,14 @@ import matplotlib.pyplot as plt
 
 import value_interation as vi
 
-def model_sim(param_,kstar,z_prob_mat,z_vec,k_vec,c_vec, Kp, Cp,Vp, N=50, Ttot=2_000,Terg=200):
+def model_sim(param_,param_others,kstar,z_prob_mat,z_vec,k_vec,c_vec, Kp, Cp,Vp, N=50, Ttot=2_000,Terg=200):
         """
         # Model simulation.
         Pending: 
             (1) see comments of Whited about how to improve simulation speed.
         """
-        param_manager = param_[0:3]   # (α, β, s)
-        param_inv = param_[3:8]  # (δ, λ, a, θ, τ)
-        param_fin = param_[8:10]                 # (r, ϕ=0.043)
-        param_ar = param_[10:14]           # (μ, σ, ρ, stdbound)
-        α, β, s                         = param_manager     # Manager compensation
-        δ, λ, a, θ, τ                   = param_inv         # Investment parameters
-        r, ϕ                            = param_fin         # Financing Parameters  
-        μ, σ, ρ, stdbound = param_ar
+        [α, β, s, a, θ, ϕ, σ, ρ] =   param_ 
+        [δ,λ,τ,r,μ,stdbound]     =   param_others
         
         mc = qe.MarkovChain(np.transpose(z_prob_mat))
         E = mc.simulate(ts_length=Ttot, num_reps=N,random_state=123).T
@@ -116,10 +110,11 @@ def model_sim(param_,kstar,z_prob_mat,z_vec,k_vec,c_vec, Kp, Cp,Vp, N=50, Ttot=2
 def run_comparative_stats(variable,param_iter):
     
     param_manager     = (0.751/100, 0.051, 0.101/1000) # (α, β, s) 
-    param_inv         = (0.130, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
+    param_inv         = (0.13, 0, 1.278, 0.773 , 0.2) # (δ, λ, a, θ, τ)   
     param_fin         = (0.011, 0.043)                 # (r, ϕ=0.043)
     param_ar          = (0, 0.262, 0.713, 4)           # (μ, σ, ρ, stdbound)
     param_            = param_manager+param_inv+param_fin+ param_ar
+    
     _nk               = 10                              # intermediate points in the capital grid
     _nc               = 10                              # intermediate points in the cash grid
     (dimc, dimk, dimz) = (11, 25, 5)
@@ -150,7 +145,16 @@ def run_comparative_stats(variable,param_iter):
     R, D                               = vi.rewards_grids(param_manager, param_inv, param_fin, param_dim, z_vec, k_vec, c_vec, kp_vec, cp_vec)  
     Upol,Kpol,Cpol, i_kpol, i_cpol     = vi.value_iteration(param_dim,param_fin,R,z_prob_mat,k_vec,c_vec,z_vec,kp_vec,cp_vec,grid_points,grid_to_interp)
     Vpol= vi.value_iteration_firm_value(param_dim, param_fin, D, z_prob_mat, k_vec, c_vec, z_vec, i_kpol, i_cpol, grid_points, grid_to_interp)
-    sim_K, sim_C, *_                         = model_sim(param_,kstar,z_prob_mat, z_vec ,k_vec,c_vec, Kpol, Cpol, Vpol)
+    
+    param_=(0.751/100, 0.051, 0.101/1000, 1.278, 0.773,  0.043, 0.262, 0.713 )
+    δ:float=.13
+    λ:float=0.0
+    τ:float=0.2
+    r:float=.011
+    μ:float=0.0
+    stdbound:float=4.0
+    param_others=[δ,λ,τ,r,μ,stdbound]
+    sim_K, sim_C, *_                         = model_sim(param_,param_others,kstar,z_prob_mat, z_vec ,k_vec,c_vec, Kpol, Cpol, Vpol)
     sim_Cratio                           = sim_C/(sim_K+sim_C)       
     sim_Cratio_av                        = np.mean(sim_Cratio)
     print(f"average cash ratio {variable}= {param_iter}: {sim_Cratio_av}\n")
