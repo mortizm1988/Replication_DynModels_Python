@@ -1,0 +1,283 @@
+---
+title: "Replication: Dynamic Contracting in Continuous Time"
+date: last-modified
+date-format: long
+author:
+  - name: Marcelo Ortiz M.
+    affiliations:
+      name: Universitat Pompeu Fabra
+format:
+  html: 
+    toc: true
+    toc-location: left
+embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+
+---
+
+# State Variable
+
+The agent's **continuation value**  $W_t$ evolves according to:
+
+$$
+dW_t = r(W_t - u(C_t) + h(A_t)) dt + r \, y(A_t) \, (dX_t - A_t dt)
+$$
+
+where:
+
+-  $C_t$  is the agent's consumption,
+-  $A_t$ is the agent's effort,
+-  $X_t$ is the **stochastic output process**, following:
+
+$$
+dX_t = A_t dt + \sigma dB_t
+$$
+
+with Brownian motion $B_t$ and volatility $\sigma$.
+
+
+# Principal's Hamilton-Jacobi-Bellman  Equation
+
+The HJB equation for the principal's profit function $F(W)$ is:
+$$
+r F(W) = \max_{a > 0, c} \left\{ r(a - c) + F'(W) r(W - u(c) + h(a)) + \frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2 \right\}
+$$
+
+where:
+
+$$
+dX_t = A_t dt + \sigma dB_t
+$$
+
+- $r(a - c)$ is the **instantaneous profit flow** of the principal,
+- $F'(W) r(W - u(c) + h(a))$ accounts for how the agent’s continuation value changes due to effort and consumption,
+- $\frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2$ captures the impact of volatility in the contract.
+
+## Parameter values  and Functional forms
+
+- $r = 0.1$ is the **discount rate**,
+- $\sigma = 1.0$ is the **volatility of output process**,
+- $u(C) = \sqrt{C}$ is the agent's **utility function**, 
+- $h(A) = 0.5 A^2 + 0.4 A$ is the **effort cost function**.
+
+## Optimal Effort and Consumption
+### Consumption:
+Since the principal chooses $c(W)$ to maximize the right-hand side of the HJB equation, we take the derivative of the RHS of the HJB with respect to  $c$:
+
+$$
+\frac{\partial}{\partial c} \left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \right] = 0
+$$
+
+obtaining the first-order condition:
+
+$$
+F'(W) u'(c) = 1
+$$
+
+Since the agent’s utility function is:
+
+$$
+u(c) = \sqrt{c}
+$$
+
+its derivative is:
+
+$$
+u'(c) = \frac{1}{2\sqrt{c}}
+$$
+
+Substituting  into the first-order condition:
+
+$$
+F'(W) \cdot \frac{1}{2\sqrt{c}} = 1
+$$
+
+Solving for  $c_{opt}$  yields:
+
+$$
+c_{\text{opt}}(W) = \left( \frac{1}{-F'(W)} \right)^2
+$$
+
+### Effort:
+
+In Sannikov’s approach the contract is set up so that the agent’s incentive compatibility constraint is satisfied “locally” via a martingale representation of his continuation value. In effect, the contract is designed so that the agent’s choice of effort appears only in the drift. This implies that the agent’s optimal effort is determined by the first-order condition (holding the chosen optimal consumption rule fixed $c_{\text{opt}}(W)):
+$$
+r+rF'(W)h'(a)=0
+$$
+which implies that the optimal effort is:
+$$
+F'(W) h'(a) = -1 
+$$
+
+subtituting the effort cost function $h(a) = 0.5 a^2 + 0.4 a$ and its derivative $h'(a) = a + 0.4$ we get:
+$$
+a_{\text{opt}}(W) = \max \left\{ \frac{1}{-F'(W)} - 0.4, 0 \right\}
+$$
+
+
+##  Profits from retiring the agent
+$$F_0(u(c))=-c$$
+
+(notice that the profits will be zero, $dW_t=U_t$.)
+
+## **Boundary Conditions & Smooth Pasting**
+
+The function $F(W)$ must satisfy the following conditions:
+
+1. **Lower boundary condition** (zero profit at zero continuation value):
+   $$
+   F(0) = 0
+   $$
+
+2. **Retirement boundary condition** (termination value function):
+   $$
+   F(W_{gp})=F_0(Inv(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2
+   $$
+
+3. **Smooth pasting condition** (ensuring differentiability at retirement):
+   $$
+   F'(W_{gp}) = -2 W_{gp}
+   $$
+
+
+
+For computation purposes we rewrite the HJB equation as:
+$$
+F''(W) = \min_{a > 0, c} \frac{F(W) - a + c - F'(W)(W - u(c) + h(a))}{r \gamma (a)^2 \sigma^2 / 2}
+$$
+
+
+# Code
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+from scipy.optimize import root_scalar
+
+# -------------------------------
+# Parameters and functional forms
+# -------------------------------
+r = 0.1      # discount rate
+sigma = 1.0  # volatility
+
+def u(c):
+    """Agent's utility function."""
+    return np.sqrt(c)
+
+def h(a):
+    """Effort cost function."""
+    return 0.5*a**2 + 0.4*a
+
+def h_prime(a):
+    """Derivative of h (and equals gamma(a))."""
+    return a + 0.4
+
+# -------------------------------------------------
+# Optimal controls computed from the first-order conditions
+# -------------------------------------------------
+def c_optimal(F_prime):
+    """Optimal consumption from -F'(W)*u'(c)=1 with u(c)=√c.
+       c_opt = (1/(-F'))^2 (assuming F' < 0).
+    """
+    if F_prime >= 0:
+        # This should not happen; return a small positive number.
+        return 1e-6
+    return (1/(-F_prime))**2
+
+def a_optimal(F_prime):
+    """Optimal effort from -F'(W)*h'(a)=1 with h'(a)=a+0.4.
+       Hence, a_opt = max{1/(-F') - 0.4, 0}.
+    """
+    if F_prime >= 0:
+        return 0.0
+    return max(1/(-F_prime) - 0.4, 0.0)
+
+# ------------------------------
+# ODE: the HJB written as a second order ODE in F
+# ------------------------------
+def F_ode(W, Y):
+    """
+    Y[0] = F(W),  Y[1] = F'(W).
+    Computes F''(W) from the rearranged HJB equation:
+    
+    F''(W) = 2 * [F(W) - a + c - F'(W)*(W - u(c) + h(a))]
+             ---------------------------------------------
+                    r * sigma^2 * (h'(a))^2
+    """
+    F_val, F_prime = Y
+    # Compute optimal controls (assume F_prime < 0)
+    c = c_optimal(F_prime)
+    a = a_optimal(F_prime)
+    gamma = h_prime(a)
+    drift = W - u(c) + h(a)
+    F_double_prime = 2*(F_val - a + c - F_prime*drift) / (r * sigma**2 * (gamma**2))
+    return [F_prime, F_double_prime]
+
+# -------------------------------------
+# Shooting method: integrate from the free-boundary (W_gp) back to 0
+# -------------------------------------
+def solve_for_F(W_gp):
+    """
+    Given a candidate free-boundary value W_gp, integrate the ODE backward
+    from W_gp to 0 using the boundary conditions at retirement:
+      F(W_gp) = -W_gp^2,    F'(W_gp) = -2W_gp.
+    Returns the solution (and in particular F(0)).
+    """
+    F_Wgp = -W_gp**2
+    Fprime_Wgp = -2*W_gp
+    sol = solve_ivp(F_ode, [W_gp,0], [F_Wgp, Fprime_Wgp],
+                    t_eval=np.linspace(W_gp, 0, 500), method='RK45',rtol=1e-8, atol=1e-10)
+    F_at_0 = sol.y[0, -1]
+    return sol, F_at_0
+
+def shooting_obj(W_gp):
+    """Objective function for shooting: we want F(0) = 0."""
+    _, F0 = solve_for_F(W_gp)
+    return F0
+
+# ----------------------------
+# Find the free-boundary W_gp such that F(0)=0
+# ----------------------------
+# Choose an interval where we expect W_gp to lie.
+res = root_scalar(shooting_obj, bracket=[0.8, 1.2], method='bisect')
+W_gp_star = res.root
+print("Optimal free boundary W_gp =", W_gp_star)
+
+# %%
+# # ------------------------------------------------
+# With the free-boundary found, solve the ODE to get F(W) on [0, W_gp]
+# ------------------------------------------------
+sol, F0_val = solve_for_F(W_gp_star)
+W_vals = sol.t
+F_vals = sol.y[0]
+Fprime_vals = sol.y[1]
+# Compute the optimal effort at each point using the computed F'(W)
+a_vals = np.array([a_optimal(fp) for fp in Fprime_vals])
+
+# ----------------------------
+# Plot the results
+# ----------------------------
+fig, ax1 = plt.subplots(figsize=(8,6))
+
+color1 = 'tab:blue'
+ax1.set_xlabel('Continuation Value W')
+ax1.set_ylabel('Principal\'s Value Function F(W)', color=color1)
+ax1.plot(W_vals, F_vals, color=color1, lw=2, label='F(W)')
+ax1.tick_params(axis='y', labelcolor=color1)
+ax1.grid(True)
+
+# Create a second y-axis for optimal effort
+ax2 = ax1.twinx()
+color2 = 'tab:red'
+ax2.set_ylabel('Optimal Effort a(W)', color=color2)
+ax2.plot(W_vals, a_vals, color=color2, ls='--', lw=2, label='a(W)')
+ax2.tick_params(axis='y', labelcolor=color2)
+
+fig.tight_layout()
+plt.title('Replication of Sannikov 2008: Value Function and Effort')
+plt.show()
+```
