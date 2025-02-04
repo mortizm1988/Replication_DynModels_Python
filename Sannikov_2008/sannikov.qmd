@@ -10,11 +10,22 @@ format:
   html: 
     toc: true
     toc-location: left
+    link-external-icon: true
+    link-external-newwindow: true
+    smooth-scroll: true
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    fig-width: 8
+    fig-height: 6
+    df-print: paged
+
 embed-resources: true
 execute:
   echo: true
   warning: false
   message: false
+  error: false
 
 ---
 
@@ -23,7 +34,7 @@ execute:
 The agent's **continuation value**  $W_t$ evolves according to:
 
 $$
-dW_t = r(W_t - u(C_t) + h(A_t)) dt + r \, y(A_t) \, (dX_t - A_t dt)
+dW_t = r(W_t - u(C_t) + h(A_t)) dt + r \, y(W_t) \, (dX_t - A_t dt)
 $$
 
 where:
@@ -98,12 +109,17 @@ $$
 Solving for  $c_{opt}$  yields:
 
 $$
-c_{\text{opt}}(W) = \left( \frac{1}{-F'(W)} \right)^2
+c_{\text{opt}}(W) = \left( \frac{1}{-2F'(W)} \right)^2
 $$
 
 ### Effort:
 
-In Sannikov’s approach the contract is set up so that the agent’s incentive compatibility constraint is satisfied “locally” via a martingale representation of his continuation value. In effect, the contract is designed so that the agent’s choice of effort appears only in the drift. This implies that the agent’s optimal effort is determined by the first-order condition (holding the chosen optimal consumption rule fixed $c_{\text{opt}}(W)):
+In Sannikov’s approach the contract is set up so that the agent’s incentive compatibility constraint is satisfied “locally” via a martingale representation of his continuation value. In effect, the contract is designed so that the agent’s choice of effort appears only in the drift. This implies that the agent’s optimal effort is determined by the first-order condition (holding the chosen optimal consumption rule $c_{\text{opt}}(W))$ fixed:
+
+$$
+\frac{\partial}{\partial a} \left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \right] = 0
+$$
+obtaining
 $$
 r+rF'(W)h'(a)=0
 $$
@@ -134,7 +150,7 @@ The function $F(W)$ must satisfy the following conditions:
 
 2. **Retirement boundary condition** (termination value function):
    $$
-   F(W_{gp})=F_0(Inv(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2
+   F(W_{gp})=F_0(\text{Inv}(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2
    $$
 
 3. **Smooth pasting condition** (ensuring differentiability at retirement):
@@ -154,7 +170,9 @@ $$
 
 ```{python}
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from scipy.integrate import solve_ivp
 from scipy.optimize import root_scalar
 
@@ -164,42 +182,39 @@ from scipy.optimize import root_scalar
 r = 0.1      # discount rate
 sigma = 1.0  # volatility
 
-def u(c):
+def u(c: float)->float:
     """Agent's utility function."""
     return np.sqrt(c)
 
-def h(a):
+def h(a: float)->float:
     """Effort cost function."""
     return 0.5*a**2 + 0.4*a
 
-def h_prime(a):
+def h_prime(a: float)->float:
     """Derivative of h (and equals gamma(a))."""
     return a + 0.4
 
 # -------------------------------------------------
 # Optimal controls computed from the first-order conditions
 # -------------------------------------------------
-def c_optimal(F_prime):
-    """Optimal consumption from -F'(W)*u'(c)=1 with u(c)=√c.
-       c_opt = (1/(-F'))^2 (assuming F' < 0).
+def c_optimal_func(F_prime: float) -> float:
     """
-    if F_prime >= 0:
-        # This should not happen; return a small positive number.
-        return 1e-6
-    return (1/(-F_prime))**2
+    c_opt(W) = (-F'(W)/2)**2.
+    """
+    # if F_prime >= 0:
+    #    return 0
+    return ((-F_prime)/2)**2
 
-def a_optimal(F_prime):
+def a_optimal_func(F_prime: float) -> float:
     """Optimal effort from -F'(W)*h'(a)=1 with h'(a)=a+0.4.
        Hence, a_opt = max{1/(-F') - 0.4, 0}.
     """
-    if F_prime >= 0:
-        return 0.0
-    return max(1/(-F_prime) - 0.4, 0.0)
+    return max(1/(-F_prime) - 0.4,0)
 
 # ------------------------------
 # ODE: the HJB written as a second order ODE in F
 # ------------------------------
-def F_ode(W, Y):
+def F_ode(W: float, Y: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     Y[0] = F(W),  Y[1] = F'(W).
     Computes F''(W) from the rearranged HJB equation:
@@ -210,74 +225,91 @@ def F_ode(W, Y):
     """
     F_val, F_prime = Y
     # Compute optimal controls (assume F_prime < 0)
-    c = c_optimal(F_prime)
-    a = a_optimal(F_prime)
+    c = c_optimal_func(F_prime)
+    a = a_optimal_func(F_prime)
     gamma = h_prime(a)
     drift = W - u(c) + h(a)
     F_double_prime = 2*(F_val - a + c - F_prime*drift) / (r * sigma**2 * (gamma**2))
     return [F_prime, F_double_prime]
 
-# -------------------------------------
-# Shooting method: integrate from the free-boundary (W_gp) back to 0
-# -------------------------------------
-def solve_for_F(W_gp):
+
+def solve_for_F(fprime_guess,return_sol=False):
     """
-    Given a candidate free-boundary value W_gp, integrate the ODE backward
-    from W_gp to 0 using the boundary conditions at retirement:
-      F(W_gp) = -W_gp^2,    F'(W_gp) = -2W_gp.
-    Returns the solution (and in particular F(0)).
+    Given a candidate for Fprime(0), integrate the ODE frontward
+    from 0 to a fix value=2 using the boundary conditions at retirement:
+    F(0)=0,  F(W_gp) = -W_gp^2,    F'(W_gp) = -2*W_gp.
+    The first step, for each Fprime(0),  find W_gp, by finding the first case where  F'(W_gp) = -2*W_gp.
+    The second step is to find the Fprime(0) such that its W_gp associated meet the condition F(W_gp) = -W_gp^2
     """
-    F_Wgp = -W_gp**2
-    Fprime_Wgp = -2*W_gp
-    sol = solve_ivp(F_ode, [W_gp,0], [F_Wgp, Fprime_Wgp],
-                    t_eval=np.linspace(W_gp, 0, 500), method='RK45',rtol=1e-8, atol=1e-10)
-    F_at_0 = sol.y[0, -1]
-    return sol, F_at_0
+    w_grid = np.linspace(0, 1.5, 100)       
+    sol = solve_ivp(fun=F_ode, t_span= [0,1.5], y0= [0, fprime_guess],
+                    t_eval=w_grid, method='RK45', atol=1e-16) # "Lower Boundary Condition" is in y0[0]=0, meaning F(0)=0.
+    
+    # Smooth-Pasting Condition: select the first sol.t (=W) where F'(W_gp) = -2*W_gp
+    idx = np.argmin(np.abs(sol.y[1] + 2*sol.t))
+    W_gp = sol.t[idx]
+    # Retirement (Upper) Boundary Condition: compute a loss function for the condition F_Wgp = -W_gp**2
+    F0_val = sol.y[0][idx] + W_gp**2
 
-def shooting_obj(W_gp):
-    """Objective function for shooting: we want F(0) = 0."""
-    _, F0 = solve_for_F(W_gp)
-    return F0
+    if return_sol:
+        return sol, W_gp
+    return F0_val
 
-# ----------------------------
-# Find the free-boundary W_gp such that F(0)=0
-# ----------------------------
-# Choose an interval where we expect W_gp to lie.
-res = root_scalar(shooting_obj, bracket=[0.8, 1.2], method='bisect')
-W_gp_star = res.root
-print("Optimal free boundary W_gp =", W_gp_star)
+#  function find the root of the loss function
+res = root_scalar(solve_for_F,  method='newton',x0=0.1,xtol=1e-16)
 
-# %%
-# # ------------------------------------------------
-# With the free-boundary found, solve the ODE to get F(W) on [0, W_gp]
-# ------------------------------------------------
-sol, F0_val = solve_for_F(W_gp_star)
+# solve the ODE with the optimal Fprime(0)
+sol, W_gp = solve_for_F(res.root,return_sol=True)
+F_W= sol.y[0]
 W_vals = sol.t
-F_vals = sol.y[0]
-Fprime_vals = sol.y[1]
-# Compute the optimal effort at each point using the computed F'(W)
-a_vals = np.array([a_optimal(fp) for fp in Fprime_vals])
 
-# ----------------------------
-# Plot the results
-# ----------------------------
-fig, ax1 = plt.subplots(figsize=(8,6))
+c_optimal_array = np.vectorize(c_optimal_func)
+a_optimal_array = np.vectorize(a_optimal_func)
+c_vals = c_optimal_array(sol.y[1])
+a_vals = a_optimal_array(sol.y[1])
+drift_vals = W_vals - np.sqrt(c_vals) + (0.5*a_vals**2 + 0.4*a_vals)  # i.e. W - u(c) + h(a)
+F0=-W_vals**2
 
-color1 = 'tab:blue'
-ax1.set_xlabel('Continuation Value W')
-ax1.set_ylabel('Principal\'s Value Function F(W)', color=color1)
-ax1.plot(W_vals, F_vals, color=color1, lw=2, label='F(W)')
-ax1.tick_params(axis='y', labelcolor=color1)
-ax1.grid(True)
 
-# Create a second y-axis for optimal effort
-ax2 = ax1.twinx()
-color2 = 'tab:red'
-ax2.set_ylabel('Optimal Effort a(W)', color=color2)
-ax2.plot(W_vals, a_vals, color=color2, ls='--', lw=2, label='a(W)')
-ax2.tick_params(axis='y', labelcolor=color2)
+# Create a figure with two columns, left is wide, right is narrower
+fig = plt.figure(figsize=(8, 6))
+gs = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2.5, 1])
 
-fig.tight_layout()
-plt.title('Replication of Sannikov 2008: Value Function and Effort')
+# --- LEFT PLOT (Profit) ---
+ax_left = fig.add_subplot(gs[0])
+ax_left.plot(W_vals, F_W, label='F(W)')
+ax_left.plot(W_vals, F0, label='F₀(W)')
+ax_left.axvline(W_gp, color='red', ls='--', label='W_gp')
+ax_left.set_xlabel('W')
+ax_left.set_ylabel('Profit')
+ax_left.legend()
+ax_left.set_title('Principal’s Profit')
+
+# --- RIGHT COLUMN: three stacked plots ---
+gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[1],
+                                            hspace=0.4)
+
+# Effort subplot
+ax_eff = fig.add_subplot(gs_right[0])
+ax_eff.plot(W_vals, a_vals)
+ax_eff.set_ylabel('Effort a(W)')
+ax_eff.axvline(W_gp, color='red', ls='--')
+ax_eff.set_ylim([0, 1])  # adjust if you want
+
+# Consumption subplot
+ax_cons = fig.add_subplot(gs_right[1])
+ax_cons.plot(W_vals, c_vals)
+ax_cons.set_ylabel('Consumption c(W)')
+ax_cons.axvline(W_gp, color='red', ls='--')
+ax_cons.set_ylim([0, 1])  # adjust as needed
+
+# Drift subplot
+ax_dr = fig.add_subplot(gs_right[2])
+ax_dr.plot(W_vals, drift_vals)
+ax_dr.set_ylabel('Drift of W')
+ax_dr.set_xlabel('W')
+ax_dr.axvline(W_gp, color='red', ls='--')
+
+plt.tight_layout()
 plt.show()
 ```
