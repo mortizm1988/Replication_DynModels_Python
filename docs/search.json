@@ -1,0 +1,37 @@
+[
+  {
+    "objectID": "Sannikov_2008/sannikov.html",
+    "href": "Sannikov_2008/sannikov.html",
+    "title": "Replication: Dynamic Contracting in Continuous Time",
+    "section": "",
+    "text": "The agent’s continuation value W_t evolves according to:\n\ndW_t = r(W_t - u(C_t) + h(A_t)) dt + r \\, y(W_t) \\, (dX_t - A_t dt)\n\nwhere:\n\nC_t is the agent’s consumption,\nA_t is the agent’s effort,\nX_t is the stochastic output process, following:\n\n\ndX_t = A_t dt + \\sigma dB_t\n\nwith Brownian motion B_t and volatility \\sigma."
+  },
+  {
+    "objectID": "Sannikov_2008/sannikov.html#parameter-values-and-functional-forms",
+    "href": "Sannikov_2008/sannikov.html#parameter-values-and-functional-forms",
+    "title": "Replication: Dynamic Contracting in Continuous Time",
+    "section": "Parameter values and Functional forms",
+    "text": "Parameter values and Functional forms\n\nr = 0.1 is the discount rate,\n\\sigma = 1.0 is the volatility of output process,\nu(C) = \\sqrt{C} is the agent’s utility function,\nh(A) = 0.5 A^2 + 0.4 A is the effort cost function."
+  },
+  {
+    "objectID": "Sannikov_2008/sannikov.html#optimal-effort-and-consumption",
+    "href": "Sannikov_2008/sannikov.html#optimal-effort-and-consumption",
+    "title": "Replication: Dynamic Contracting in Continuous Time",
+    "section": "Optimal Effort and Consumption",
+    "text": "Optimal Effort and Consumption\n\nConsumption:\nSince the principal chooses c(W) to maximize the right-hand side of the HJB equation, we take the derivative of the RHS of the HJB with respect to c:\n\n\\frac{\\partial}{\\partial c} \\left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \\right] = 0\n\nobtaining the first-order condition:\n\nF'(W) u'(c) = 1\n\nSince the agent’s utility function is:\n\nu(c) = \\sqrt{c}\n\nits derivative is:\n\nu'(c) = \\frac{1}{2\\sqrt{c}}\n\nSubstituting into the first-order condition:\n\nF'(W) \\cdot \\frac{1}{2\\sqrt{c}} = 1\n\nSolving for c_{opt} yields:\n\nc_{\\text{opt}}(W) = \\left( \\frac{1}{-2F'(W)} \\right)^2\n\n\n\nEffort:\nIn Sannikov’s approach the contract is set up so that the agent’s incentive compatibility constraint is satisfied “locally” via a martingale representation of his continuation value. In effect, the contract is designed so that the agent’s choice of effort appears only in the drift. This implies that the agent’s optimal effort is determined by the first-order condition (holding the chosen optimal consumption rule c_{\\text{opt}}(W)) fixed:\n\n\\frac{\\partial}{\\partial a} \\left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \\right] = 0\n obtaining \nr+rF'(W)h'(a)=0\n which implies that the optimal effort is: \nF'(W) h'(a) = -1\n\nsubtituting the effort cost function h(a) = 0.5 a^2 + 0.4 a and its derivative h'(a) = a + 0.4 we get: \na_{\\text{opt}}(W) = \\max \\left\\{ \\frac{1}{-F'(W)} - 0.4, 0 \\right\\}"
+  },
+  {
+    "objectID": "Sannikov_2008/sannikov.html#profits-from-retiring-the-agent",
+    "href": "Sannikov_2008/sannikov.html#profits-from-retiring-the-agent",
+    "title": "Replication: Dynamic Contracting in Continuous Time",
+    "section": "Profits from retiring the agent",
+    "text": "Profits from retiring the agent\nF_0(u(c))=-c\n(notice that the profits will be zero, dW_t=U_t.)"
+  },
+  {
+    "objectID": "Sannikov_2008/sannikov.html#boundary-conditions-smooth-pasting",
+    "href": "Sannikov_2008/sannikov.html#boundary-conditions-smooth-pasting",
+    "title": "Replication: Dynamic Contracting in Continuous Time",
+    "section": "Boundary Conditions & Smooth Pasting",
+    "text": "Boundary Conditions & Smooth Pasting\nThe function F(W) must satisfy the following conditions:\n\nLower boundary condition (zero profit at zero continuation value): \nF(0) = 0\n\nRetirement boundary condition (termination value function): \nF(W_{gp})=F_0(\\text{Inv}(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2\n\nSmooth pasting condition (ensuring differentiability at retirement): \nF'(W_{gp}) = -2 W_{gp}\n\n\nFor computation purposes we rewrite the HJB equation as: \nF''(W) = \\min_{a &gt; 0, c} \\frac{F(W) - a + c - F'(W)(W - u(c) + h(a))}{r \\gamma (a)^2 \\sigma^2 / 2}"
+  }
+]
