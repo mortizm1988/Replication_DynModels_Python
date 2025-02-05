@@ -122,14 +122,17 @@ import matplotlib.gridspec as gridspec
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize, fsolve
 
-# Parameters and functional forms
+#TODO alternatives to find a_star that depends on F, Fp, c or W?
+
+# Parameters and lambda function
 r = 0.1      # discount rate
 sigma = 1.0  # volatility
 u = lambda c: np.sqrt(c)  # Agent's utility function
 h = lambda a: 0.5*a**2 + 0.4*a  # Effort cost function
 gamma = lambda a: a + 0.4  # Effort cost function
+c_star = lambda Fp: 0 if Fp >= 0 else minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)], tol=1e-12).x[0]
+a_star = lambda F, Fp, c, W: minimize(lambda a: - (gamma(a)*a - h(a)), 0.5, bounds=[(0.0, 1)], tol=1e-12).x[0]
 
-# ODE: the HJB written as a second order ODE in F
 def F_ode(W: float, Y: np.array) -> np.array:
     """
     Y[0] = F(W),  Y[1] = F'(W).
@@ -140,17 +143,14 @@ def F_ode(W: float, Y: np.array) -> np.array:
                     r * sigma^2 * (h'(a))^2
     """
     F, Fp = Y
-    # Compute optimal controls
-    c_star = 0 if Fp >= 0 else minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)]).x[0]
-    a_solution = minimize(lambda a: - (gamma(a)*a-h(a)), 0.5, bounds=[(0.0, 1)])
-    a_star = a_solution.x[0]
-
-    gamma_star = gamma(a_star)
-    drift = W - u(c_star) + h(a_star)
-    F_pp = (F - a_star + c_star - Fp*drift) / (0.5*r*(sigma**2)*(gamma_star**2))
+    c = c_star(Fp)
+    a = a_star(F, Fp, c, W)
+    gamma_star = gamma(a)
+    drift = W - u(c) + h(a)
+    F_pp = (F - a + c - Fp*drift) / (0.5*r*(sigma**2)*(gamma_star**2))
     return [Fp, F_pp]
 
-def shooting(Fp_guess,return_sol=False):
+def shooting(Fp_guess, return_sol=False):
     """
     First: Given a candidate for Fprime(0), integrate the ODE frontward
     from W=0 to 1.2 (as in the paper), using the boundary conditions at retirement:
@@ -177,28 +177,29 @@ def shooting(Fp_guess,return_sol=False):
     return float(F0_val)
 
 # root finding for Fp using an initial guess based on the original plot (fp=0.5)
-root = fsolve(lambda Fp: shooting(Fp),0.5)
+root = fsolve(shooting, 0.5, xtol=1e-12)
+
 # solve the ODE with the optimal Fp(0)
-sol, W_gp = shooting(root[0],return_sol=True)
+sol, W_gp = shooting(root[0], return_sol=True)
+
 # Plot the results
-F_W= sol.y[0]
-Fp_W= sol.y[1]
+F_W = sol.y[0]
+Fp_W = sol.y[1]
 W_vals = sol.t
 c_vals, a_vals, drift_vals = [], [], []
 for W, F, Fp in zip(W_vals, F_W, Fp_W):
-    c = 0 if Fp >= 0 else minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)]).x[0]
-    a_solution = minimize(
+    c = c_star(Fp)
+    a = minimize(
         lambda a: (F - a + c - Fp*(W - u(c) + h(a))) / (r*gamma(a)**2*sigma**2/2),
         0.5, bounds=[(0.0, 1)]
-    )
-    a = a_solution.x[0]
+    ).x[0]
     c_vals.append(c)
     a_vals.append(a)
     drift_vals.append(r*(W - u(c) + h(a)))
 
 c_vals, a_vals, drift_vals = map(np.array, (c_vals, a_vals, drift_vals))
 
-F0=-W_vals**2
+F0 = -W_vals**2
 # Create a figure with two columns, left is wide, right is narrower
 fig = plt.figure(figsize=(8, 6))
 gs = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2.5, 1])
