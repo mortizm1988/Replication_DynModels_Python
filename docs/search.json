@@ -18,13 +18,13 @@
     "href": "Sannikov_2008/sannikov.html#profits-from-retiring-the-agent",
     "title": "Replication: Dynamic Contracting in Continuous Time",
     "section": "Profits from retiring the agent",
-    "text": "Profits from retiring the agent\nF_0(u(c))=-c\n(notice that the profits will be zero, dW_t=U_t.)"
+    "text": "Profits from retiring the agent\nTo retire the agent with value u(c), the principal can offers him constant c and allows him to choose zero effort. The profits from this for retiring are: \nF_0(u(c))=-c\n As there is no effort, the continuation value is the same as the agent’s utility function W_t=U_t, meaning that: \nF_0(W)=-W^2"
   },
   {
     "objectID": "Sannikov_2008/sannikov.html#boundary-conditions-smooth-pasting",
     "href": "Sannikov_2008/sannikov.html#boundary-conditions-smooth-pasting",
     "title": "Replication: Dynamic Contracting in Continuous Time",
     "section": "Boundary Conditions & Smooth Pasting",
-    "text": "Boundary Conditions & Smooth Pasting\nThe function F(W) must satisfy the following conditions:\n\nLower boundary condition (zero profit at zero continuation value): \nF(0) = 0\n\nRetirement boundary condition (termination value function): \nF(W_{gp})=F_0(\\text{Inv}(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2\n\nSmooth pasting condition (ensuring differentiability at retirement): \nF'(W_{gp}) = -2 W_{gp}\n\n\nFor computation purposes we rewrite the HJB equation as: \nF''(W) = \\min_{a &gt; 0, c} \\frac{F(W) - a + c - F'(W)(W - u(c) + h(a))}{r \\gamma (a)^2 \\sigma^2 / 2}"
+    "text": "Boundary Conditions & Smooth Pasting\nThe function F(W) must satisfy the following conditions:\n\nLower boundary condition (zero profit at zero continuation value): \nF(0) = 0\n\nRetirement boundary condition (profits from retiring the agent): \nF(W_{gp})=-W_{gp}^2\n\nSmooth pasting condition (ensuring differentiability at retirement): \nF'(W_{gp}) = -2 W_{gp}"
   }
 ]

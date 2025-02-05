@@ -76,9 +76,15 @@ $$
 
 
 ##  Profits from retiring the agent
-$$F_0(u(c))=-c$$
+To retire the agent with value $u(c)$, the principal can offers him constant $c$ and allows him to choose zero effort. The profits from this for retiring are: 
+$$
+F_0(u(c))=-c
+$$
+As there is no effort, the continuation value is the same as the agent's utility function $W_t=U_t$, meaning that:
+$$
+F_0(W)=-W^2
+$$
 
-(notice that the profits will be zero, $dW_t=U_t$.)
 
 ## **Boundary Conditions & Smooth Pasting**
 
@@ -89,9 +95,9 @@ The function $F(W)$ must satisfy the following conditions:
    F(0) = 0
    $$
 
-2. **Retirement boundary condition** (termination value function):
+2. **Retirement boundary condition** (profits from retiring the agent):
    $$
-   F(W_{gp})=F_0(\text{Inv}(u(W_{gp})))=F_0(W_{gp})= -W_{gp}^2
+   F(W_{gp})=-W_{gp}^2
    $$
 
 3. **Smooth pasting condition** (ensuring differentiability at retirement):
@@ -99,45 +105,32 @@ The function $F(W)$ must satisfy the following conditions:
    F'(W_{gp}) = -2 W_{gp}
    $$
 
-
-
-For computation purposes we rewrite the HJB equation as:
+# Solution Method
+As solving method usually require transforming second-order ODEs into a first-orde ODE, we rewrite the HJB equation as:
 $$
 F''(W) = \min_{a > 0, c} \frac{F(W) - a + c - F'(W)(W - u(c) + h(a))}{r \gamma (a)^2 \sigma^2 / 2}
 $$
 
+In the code below we use shooting methods for solving the model.
 
 # Code For Figure 1
 
 ```{python}
 import numpy as np
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy.integrate import solve_ivp
-from scipy.optimize import minimize, fsolve, root_scalar
+from scipy.optimize import minimize, fsolve
 
-# -------------------------------
 # Parameters and functional forms
-# -------------------------------
 r = 0.1      # discount rate
 sigma = 1.0  # volatility
+u = lambda c: np.sqrt(c)  # Agent's utility function
+h = lambda a: 0.5*a**2 + 0.4*a  # Effort cost function
+gamma = lambda a: a + 0.4  # Effort cost function
 
-def u(c: float)->float:
-    """Agent's utility function."""
-    return np.sqrt(c)
-
-def h(a: float)->float:
-    """Effort cost function."""
-    return 0.5*a**2 + 0.4*a
-
-def gamma(a: float)->float:
-    """Effort cost function."""
-    return a+0.4
-# ------------------------------
 # ODE: the HJB written as a second order ODE in F
-# ------------------------------
-def F_ode(W: float, Y: NDArray[np.float64]) -> NDArray[np.float64]:
+def F_ode(W: float, Y: np.array) -> np.array:
     """
     Y[0] = F(W),  Y[1] = F'(W).
     Computes F''(W) from the rearranged HJB equation:
@@ -148,11 +141,7 @@ def F_ode(W: float, Y: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     F, Fp = Y
     # Compute optimal controls
-    if Fp >= 0:
-        c_star = 0
-    else:
-        c_solution = minimize(lambda c: c+Fp*u(c), 0.5, bounds=[(0.0, 2.0)])
-        c_star = c_solution.x[0]
+    c_star = 0 if Fp >= 0 else minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)]).x[0]
     a_solution = minimize(lambda a: - (gamma(a)*a-h(a)), 0.5, bounds=[(0.0, 1)])
     a_star = a_solution.x[0]
 
@@ -164,12 +153,12 @@ def F_ode(W: float, Y: NDArray[np.float64]) -> NDArray[np.float64]:
 def shooting(Fp_guess,return_sol=False):
     """
     First: Given a candidate for Fprime(0), integrate the ODE frontward
-    from 0 to a fix value=2 using the boundary conditions at retirement:
+    from W=0 to 1.2 (as in the paper), using the boundary conditions at retirement:
     F(0)=0,  F(W_gp) = -W_gp^2,    F'(W_gp) = -2*W_gp.
     
-    Second: for each Fprime(0),  find W_gp, by finding the first case where  F'(W_gp) = -2*W_gp.
+    Second: for each Fp(0),  find W_gp, by finding the first case where  F'(W_gp) = -2*W_gp.
     
-    Third: find the Fprime(0) such that its W_gp associated meet the condition F(W_gp) = -W_gp^2
+    Third: find the Fp(0) such that its W_gp associated meet the condition F(W_gp) = -W_gp^2
     """
     Fp_guess = float(Fp_guess)
     w_grid = np.linspace(0, 1.2, 200)  
@@ -187,9 +176,9 @@ def shooting(Fp_guess,return_sol=False):
         return sol, W_gp
     return float(F0_val)
 
-# root finding for Fp
-root = fsolve(lambda Fp: shooting(Fp),40)
-# solve the ODE with the optimal Fprime(0)
+# root finding for Fp using an initial guess based on the original plot (fp=0.5)
+root = fsolve(lambda Fp: shooting(Fp),0.5)
+# solve the ODE with the optimal Fp(0)
 sol, W_gp = shooting(root[0],return_sol=True)
 # Plot the results
 F_W= sol.y[0]
@@ -197,11 +186,7 @@ Fp_W= sol.y[1]
 W_vals = sol.t
 c_vals, a_vals, drift_vals = [], [], []
 for W, F, Fp in zip(W_vals, F_W, Fp_W):
-    if Fp >= 0:
-        c = 0
-    else:
-        c_solution = minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)])
-        c = c_solution.x[0]
+    c = 0 if Fp >= 0 else minimize(lambda c: c + Fp*u(c), 0.5, bounds=[(0.0, 2.0)]).x[0]
     a_solution = minimize(
         lambda a: (F - a + c - Fp*(W - u(c) + h(a))) / (r*gamma(a)**2*sigma**2/2),
         0.5, bounds=[(0.0, 1)]
