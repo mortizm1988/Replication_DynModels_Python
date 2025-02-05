@@ -74,65 +74,6 @@ $$
 - $u(C) = \sqrt{C}$ is the agent's **utility function**, 
 - $h(A) = 0.5 A^2 + 0.4 A$ is the **effort cost function**.
 
-## Optimal Effort and Consumption
-### Consumption:
-Since the principal chooses $c(W)$ to maximize the right-hand side of the HJB equation, we take the derivative of the RHS of the HJB with respect to  $c$:
-
-$$
-\frac{\partial}{\partial c} \left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \right] = 0
-$$
-
-obtaining the first-order condition:
-
-$$
-F'(W) u'(c) = 1
-$$
-
-Since the agent’s utility function is:
-
-$$
-u(c) = \sqrt{c}
-$$
-
-its derivative is:
-
-$$
-u'(c) = \frac{1}{2\sqrt{c}}
-$$
-
-Substituting  into the first-order condition:
-
-$$
-F'(W) \cdot \frac{1}{2\sqrt{c}} = 1
-$$
-
-Solving for  $c_{opt}$  yields:
-
-$$
-c_{\text{opt}}(W) = \left( \frac{1}{-2F'(W)} \right)^2
-$$
-
-### Effort:
-
-In Sannikov’s approach the contract is set up so that the agent’s incentive compatibility constraint is satisfied “locally” via a martingale representation of his continuation value. In effect, the contract is designed so that the agent’s choice of effort appears only in the drift. This implies that the agent’s optimal effort is determined by the first-order condition (holding the chosen optimal consumption rule $c_{\text{opt}}(W))$ fixed:
-
-$$
-\frac{\partial}{\partial a} \left[ r(a - c) + F'(W) r(W - u(c) + h(a)) \right] = 0
-$$
-obtaining
-$$
-r+rF'(W)h'(a)=0
-$$
-which implies that the optimal effort is:
-$$
-F'(W) h'(a) = -1 
-$$
-
-subtituting the effort cost function $h(a) = 0.5 a^2 + 0.4 a$ and its derivative $h'(a) = a + 0.4$ we get:
-$$
-a_{\text{opt}}(W) = \max \left\{ \frac{1}{-F'(W)} - 0.4, 0 \right\}
-$$
-
 
 ##  Profits from retiring the agent
 $$F_0(u(c))=-c$$
@@ -174,7 +115,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy.integrate import solve_ivp
-from scipy.optimize import root_scalar
+from scipy.optimize import minimize, fsolve, root_scalar
 
 # -------------------------------
 # Parameters and functional forms
@@ -190,27 +131,20 @@ def h(a: float)->float:
     """Effort cost function."""
     return 0.5*a**2 + 0.4*a
 
-def h_prime(a: float)->float:
-    """Derivative of h (and equals gamma(a))."""
-    return a + 0.4
-
+def gamma(a: float)->float:
+    """Effort cost function."""
+    return a+0.4
 # -------------------------------------------------
 # Optimal controls computed from the first-order conditions
 # -------------------------------------------------
-def c_optimal_func(F_prime: float) -> float:
+def c_optimal_func(Fp: float) -> float:
     """
     c_opt(W) = (-F'(W)/2)**2.
     """
-    # if F_prime >= 0:
-    #    return 0
-    return ((-F_prime)/2)**2
-
-def a_optimal_func(F_prime: float) -> float:
-    """Optimal effort from -F'(W)*h'(a)=1 with h'(a)=a+0.4.
-       Hence, a_opt = max{1/(-F') - 0.4, 0}.
-    """
-    return max(1/(-F_prime) - 0.4,0)
-
+    if Fp >= 0:   # probationary interval
+        return 0
+    return ((-Fp)/2)**2
+    
 # ------------------------------
 # ODE: the HJB written as a second order ODE in F
 # ------------------------------
@@ -223,50 +157,68 @@ def F_ode(W: float, Y: NDArray[np.float64]) -> NDArray[np.float64]:
              ---------------------------------------------
                     r * sigma^2 * (h'(a))^2
     """
-    F_val, F_prime = Y
-    # Compute optimal controls (assume F_prime < 0)
-    c = c_optimal_func(F_prime)
-    a = a_optimal_func(F_prime)
-    gamma = h_prime(a)
-    drift = W - u(c) + h(a)
-    F_double_prime = 2*(F_val - a + c - F_prime*drift) / (r * sigma**2 * (gamma**2))
-    return [F_prime, F_double_prime]
+    F, Fp = Y
+    # Compute optimal controls
+    #c_star = c_optimal_func(Fp)    
+    c_solution = minimize(lambda c: c+Fp*u(c), 0.5, bounds=[(0.0, 2.0)])
+    c_star = c_solution.x[0]
+    a_solution = minimize(lambda a: - (gamma(a)*a-h(a)), 0.5, bounds=[(0.0, 1)])
+    a_star = a_solution.x[0]
+
+    gamma_star = gamma(a_star)
+    drift = W - u(c_star) + h(a_star)
+    F_pp = (F - a_star + c_star - Fp*drift) / (0.5*r*(sigma**2)*(gamma_star**2))
+    return [Fp, F_pp]
 
 
-def solve_for_F(fprime_guess,return_sol=False):
+def shooting(Fp_guess,return_sol=False):
     """
-    Given a candidate for Fprime(0), integrate the ODE frontward
+    First: Given a candidate for Fprime(0), integrate the ODE frontward
     from 0 to a fix value=2 using the boundary conditions at retirement:
     F(0)=0,  F(W_gp) = -W_gp^2,    F'(W_gp) = -2*W_gp.
-    The first step, for each Fprime(0),  find W_gp, by finding the first case where  F'(W_gp) = -2*W_gp.
-    The second step is to find the Fprime(0) such that its W_gp associated meet the condition F(W_gp) = -W_gp^2
-    """
-    w_grid = np.linspace(0, 1.5, 100)       
-    sol = solve_ivp(fun=F_ode, t_span= [0,1.5], y0= [0, fprime_guess],
-                    t_eval=w_grid, method='RK45', atol=1e-16) # "Lower Boundary Condition" is in y0[0]=0, meaning F(0)=0.
     
-    # Smooth-Pasting Condition: select the first sol.t (=W) where F'(W_gp) = -2*W_gp
-    idx = np.argmin(np.abs(sol.y[1] + 2*sol.t))
+    Second: for each Fprime(0),  find W_gp, by finding the first case where  F'(W_gp) = -2*W_gp.
+    
+    Third: find the Fprime(0) such that its W_gp associated meet the condition F(W_gp) = -W_gp^2
+    """
+    Fp_guess = float(Fp_guess)
+    w_grid = np.linspace(0, 1.2, 100)  
+    # First:     
+    sol = solve_ivp(F_ode,[w_grid[0],w_grid[-1]],  y0=[0,Fp_guess], method='RK45', t_eval=w_grid) # "Lower Boundary Condition" is in y0[0]=0, meaning F(0)=0.
+    # Second: Smooth-Pasting Condition, select the first sol.t (=W) where F'(W_gp) = -2*W_gp
+    d=sol.y[1,1:] + 2*sol.t[1:]
+    idx = np.argmin(np.abs(d))
+    idx = idx+1
     W_gp = sol.t[idx]
-    # Retirement (Upper) Boundary Condition: compute a loss function for the condition F_Wgp = -W_gp**2
-    F0_val = sol.y[0][idx] + W_gp**2
+    # Third: Retirement (Upper) Boundary Condition: compute a loss function for the condition F_Wgp = -W_gp**2
+    F0_val = sol.y[0,idx] + W_gp**2
 
     if return_sol:
         return sol, W_gp
-    return F0_val
+    return float(F0_val)
 
-#  function find the root of the loss function
-res = root_scalar(solve_for_F,  method='newton',x0=0.1,xtol=1e-16)
+
+# root finding for Fp
+root = fsolve(lambda Fp: shooting(Fp),40)
 
 # solve the ODE with the optimal Fprime(0)
-sol, W_gp = solve_for_F(res.root,return_sol=True)
+sol, W_gp = shooting(root[0],return_sol=True)
 F_W= sol.y[0]
+Fp_W= sol.y[1]
 W_vals = sol.t
-
-c_optimal_array = np.vectorize(c_optimal_func)
-a_optimal_array = np.vectorize(a_optimal_func)
-c_vals = c_optimal_array(sol.y[1])
-a_vals = a_optimal_array(sol.y[1])
+c_vals = []
+a_vals = []
+for i in range(len(W_vals)):
+    W = W_vals[i]
+    F = F_W[i]
+    Fp = Fp_W[i]
+    c_solution = minimize(lambda c: c+Fp*u(c), 0.5, bounds=[(0.0, 2.0)])
+    c=c_solution.x[0]
+    a_solution = minimize(lambda a: (F - a + c - Fp * (W - u(c) + h(a))) / (r * gamma(a)**2 * sigma**2 / 2), 0.5, bounds=[(0.0, 1)])
+    a_vals.append(a_solution.x[0])
+    c_vals.append(c)
+a_vals = np.array(a_vals)
+c_vals = np.array(c_vals)
 drift_vals = W_vals - np.sqrt(c_vals) + (0.5*a_vals**2 + 0.4*a_vals)  # i.e. W - u(c) + h(a)
 F0=-W_vals**2
 
