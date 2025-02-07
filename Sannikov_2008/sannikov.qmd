@@ -31,7 +31,12 @@ execute:
 
 # State Variable
 
-The agent's continuation value at time $t$ is defined as:
+The cumulative output of the project evolves according to:
+$$
+dX_t = A_t dt + \sigma dB_t
+$$
+
+The continuation value $W_t$ is the total utility that the principal expects the agent to derive from the future after a given moment of time t:
 
 $$
 W_t = \mathbb{E}^A \left[ \int_t^\infty e^{-r(s-t)} \left( u(C_s) - h(A_s) \right) ds \mid \mathcal{F}_t \right],
@@ -62,7 +67,7 @@ dV_t &= r e^{-rt} \left( u(C_t) - h(A_t) \right) dt - r e^{-rt} W_t dt + e^{-rt}
 $$
 
 
-The Martingale Representation Theorem states that any martingale can be expressed as an integral with respect to a Brownian motion. Thus, there exists a progressively measurable process $Y_t$ such that:
+The **Martingale Representation Theorem** states that any martingale can be expressed as an integral with respect to a Brownian motion. Thus, there exists a progressively measurable process $Y_t$ such that:
 
 $$
 dV_t = r e^{-rt} Y_t \sigma dZ_t,
@@ -72,37 +77,58 @@ where:
 - $\sigma$ is the volatility of the output process,
 - $Z_t$ is a standard Brownian motion under the probability measure corresponding to the agent's effort.
 
-**Derive the Dynamics of $W_t**:
+**Derive the Dynamics of $W_t$**:
 
 Equating the two expressions for $dV_t$ and solving for $dW_t$, we obtain:
 
 $$
-dW_t = r \left( W_t - u(C_t) + h(A_t) \right) dt + r Y_t \sigma dZ_t.
+\begin{align}
+dW_t = r \left( W_t - u(C_t(W_t)) + h(A_t(W_t)) \right) dt + r Y_t(W_t) (dX_t-A(W_t)dt).
+\end{align} 
 $$
 
-Here, $Y_t$ represents the sensitivity of the agent's continuation value to changes in the output process $X_t$.
+Here, $Y_t$ represents the sensitivity of the agent's continuation value to changes in the output process $X_t$. Notice that $dX_t-A(W_t)dt=\sigma dZ_t$.
+
+If the agent takes the contracted level of effort, then $\mathbb{E}[dX_t-A(W_t)]=0$, so in that case, the drift of the continuation value is $r \left( W_t - u(C_t(W_t)) + h(A_t(W_t)) \right)$.
 
 **Interpretation**:
 
-- **Drift Term**: The term $r \left( W_t - u(C_t) + h(A_t) \right) dt$ captures the deterministic change in the continuation value due to the passage of time, the agent's consumption, and effort.
-- **Diffusion Term**: The term $r Y_t \sigma dZ_t$ represents the stochastic fluctuation in $W_t$ driven by the randomness in the output process.
+- Drift: The continuation value grows at the interest rate $r$, minus the agent's utility from consumption and the disutility from effort at time $t$.
+- Incentives: If the agent deviate from the contracted effort level, the actual effort impacts the drift of its continuation value through the second term in $dW_t$.
+  - The agent's optimal effort is chosen to maximize the expected change in the continuation value $\mathbb{E}[dW_t]$ minus the cost of effort $h(A_t)$: $rY(W_t)A_t-r*h(A_t)$. As effort is compensated, the principal will set the sensitivity $Y(W_t)$ that the minimum level that induces the agent to choose the contracted effort level. 
+  - when the cost of effort is differentiable, the optimal effort sensitivity in the contract is $\gamma(a)=h'(a)$.
 
 # Principal's Hamilton-Jacobi-Bellman  Equation
 
-The HJB equation for the principal's profit function $F(W)$ is:
+The principal's optimal control problem is:
 $$
-r F(W) = \max_{a > 0, c} \left\{ r(a - c) + F'(W) r(W - u(c) + h(a)) + \frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2 \right\}
+F(W_0)=\max_{a_t>0, c_t} \mathbb{E} \left[ \int_0^\infty e^{-r(u-t)} ( r(a_u - c_u) du \right],
+$$
+such that:
+$$
+\begin{align}
+dW_t &= r(W_t - u(c_t) + h(a_t)) dt + r \gamma(a_t)( dX_t-a_t dt) \\
+C_t &\geq 0 \\
+a_t &\in [0,\hat{A}]  \\
+\gamma(a_t) &\text{ is incentive compatible}
+\end{align}
 $$
 
-where:
+We can convert this optimal control problem into a dynamic problem by defining the principal's profit function $F(W)$ as:
+$$
+F(W_t) = \max_{a > 0, c} \mathbb{E}_t \left[ \int_t^{t+s} e^{-r(u-t)} (a_u - c_u)du+ e^{-rs}F(W_{t+s})  \right]
+$$
+By applying the Ito's Lemma to $e^{-rs}F(W_{t+s})$, dividing by $s$ and letting $s$ goes to zero, we obtain the Hamilton-Jacobi-Bellman (HJB) equation for the principal's profit function $F(W)$:
 
 $$
-dX_t = A_t dt + \sigma dB_t
+\begin{align}
+r F(W) = \max_{a > 0, c} \left\{ r(a - c) + F'(W) r(W - u(c) + h(a)) + \frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2 \right\} 
+\end{align}
 $$
 
-- $r(a - c)$ is the **instantaneous profit flow** of the principal,
+- $r(a - c)$ is the instantaneous profit flow of the principal,
 - $F'(W) r(W - u(c) + h(a))$ accounts for how the agent’s continuation value changes due to effort and consumption,
-- $\frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2$ captures the impact of volatility in the contract.
+- $\frac{1}{2} F''(W) r^2 \gamma(a)^2 \sigma^2$ captures the impact of volatility and the sensitivity of effort in the contract.
 
 ## Parameter values  and Functional forms
 
@@ -230,9 +256,9 @@ for W, F, Fp in zip(W_vals, F_W, Fp_W):
         break
     c = c_star(Fp)
     a = minimize(
-        lambda a: (F - a + c - Fp*(W - u(c) + h(a))) / (r*gamma(a)**2*sigma**2/2),
+        lambda a: (F - a + c - Fp*(W - u(c) + h(a))) / (r*gamma(a)**2*sigma**2/2),  
         0.5, bounds=[(0.0, 1)]
-    ).x[0]
+    ).x[0]  # maybe replace by equation 10 in the paper? notice the paper has a typo in the equation.
     c_vals.append(c)
     a_vals.append(a)
     drift_vals.append(r*(W - u(c) + h(a)))

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Marcelo Ortiz M.">
-<meta name="dcterms.date" content="2025-02-06">
+<meta name="dcterms.date" content="2025-02-07">
 
 <title>Replication: Dynamic Contracting in Continuous Time</title>
 <style>
@@ -4803,7 +4803,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">February 6, 2025</p>
+      <p class="date">February 7, 2025</p>
     </div>
   </div>
   
@@ -4817,7 +4817,10 @@ window.Quarto = {
 
 <section id="state-variable" class="level1">
 <h1>State Variable</h1>
-<p>The agent’s continuation value at time <span class="math inline">t</span> is defined as:</p>
+<p>The cumulative output of the project evolves according to: <span class="math display">
+dX_t = A_t dt + \sigma dB_t
+</span></p>
+<p>The continuation value <span class="math inline">W_t</span> is the total utility that the principal expects the agent to derive from the future after a given moment of time t:</p>
 <p><span class="math display">
 W_t = \mathbb{E}^A \left[ \int_t^\infty e^{-r(s-t)} \left( u(C_s) - h(A_s) \right) ds \mid \mathcal{F}_t \right],
 </span></p>
@@ -4834,36 +4837,54 @@ dV_t &amp;= r e^{-rt} \left( u(C_t) - h(A_t) \right) dt - r e^{-rt} W_t dt + e^{
 &amp;= 0.
 \end{aligned}
 </span></p>
-<p>The Martingale Representation Theorem states that any martingale can be expressed as an integral with respect to a Brownian motion. Thus, there exists a progressively measurable process <span class="math inline">Y_t</span> such that:</p>
+<p>The <strong>Martingale Representation Theorem</strong> states that any martingale can be expressed as an integral with respect to a Brownian motion. Thus, there exists a progressively measurable process <span class="math inline">Y_t</span> such that:</p>
 <p><span class="math display">
 dV_t = r e^{-rt} Y_t \sigma dZ_t,
 </span></p>
 <p>where: - <span class="math inline">\sigma</span> is the volatility of the output process, - <span class="math inline">Z_t</span> is a standard Brownian motion under the probability measure corresponding to the agent’s effort.</p>
-<p><strong>Derive the Dynamics of $W_t</strong>:</p>
+<p><strong>Derive the Dynamics of <span class="math inline">W_t</span></strong>:</p>
 <p>Equating the two expressions for <span class="math inline">dV_t</span> and solving for <span class="math inline">dW_t</span>, we obtain:</p>
 <p><span class="math display">
-dW_t = r \left( W_t - u(C_t) + h(A_t) \right) dt + r Y_t \sigma dZ_t.
+\begin{align}
+dW_t = r \left( W_t - u(C_t(W_t)) + h(A_t(W_t)) \right) dt + r Y_t(W_t) (dX_t-A(W_t)dt).
+\end{align}
 </span></p>
-<p>Here, <span class="math inline">Y_t</span> represents the sensitivity of the agent’s continuation value to changes in the output process <span class="math inline">X_t</span>.</p>
+<p>Here, <span class="math inline">Y_t</span> represents the sensitivity of the agent’s continuation value to changes in the output process <span class="math inline">X_t</span>. Notice that <span class="math inline">dX_t-A(W_t)dt=\sigma dZ_t</span>.</p>
+<p>If the agent takes the contracted level of effort, then <span class="math inline">\mathbb{E}[dX_t-A(W_t)]=0</span>, so in that case, the drift of the continuation value is <span class="math inline">r \left( W_t - u(C_t(W_t)) + h(A_t(W_t)) \right)</span>.</p>
 <p><strong>Interpretation</strong>:</p>
 <ul>
-<li><strong>Drift Term</strong>: The term <span class="math inline">r \left( W_t - u(C_t) + h(A_t) \right) dt</span> captures the deterministic change in the continuation value due to the passage of time, the agent’s consumption, and effort.</li>
-<li><strong>Diffusion Term</strong>: The term <span class="math inline">r Y_t \sigma dZ_t</span> represents the stochastic fluctuation in <span class="math inline">W_t</span> driven by the randomness in the output process.</li>
+<li>Drift: The continuation value grows at the interest rate <span class="math inline">r</span>, minus the agent’s utility from consumption and the disutility from effort at time <span class="math inline">t</span>.</li>
+<li>Incentives: If the agent deviate from the contracted effort level, the actual effort impacts the drift of its continuation value through the second term in <span class="math inline">dW_t</span>.
+<ul>
+<li>The agent’s optimal effort is chosen to maximize the expected change in the continuation value <span class="math inline">\mathbb{E}[dW_t]</span> minus the cost of effort <span class="math inline">h(A_t)</span>: <span class="math inline">rY(W_t)A_t-r*h(A_t)</span>. As effort is compensated, the principal will set the sensitivity <span class="math inline">Y(W_t)</span> that the minimum level that induces the agent to choose the contracted effort level.</li>
+<li>when the cost of effort is differentiable, the optimal effort sensitivity in the contract is <span class="math inline">\gamma(a)=h&#39;(a)</span>.</li>
+</ul></li>
 </ul>
 </section>
 <section id="principals-hamilton-jacobi-bellman-equation" class="level1">
 <h1>Principal’s Hamilton-Jacobi-Bellman Equation</h1>
-<p>The HJB equation for the principal’s profit function <span class="math inline">F(W)</span> is: <span class="math display">
-r F(W) = \max_{a &gt; 0, c} \left\{ r(a - c) + F&#39;(W) r(W - u(c) + h(a)) + \frac{1}{2} F&#39;&#39;(W) r^2 \gamma(a)^2 \sigma^2 \right\}
+<p>The principal’s optimal control problem is: <span class="math display">
+F(W_0)=\max_{a_t&gt;0, c_t} \mathbb{E} \left[ \int_0^\infty e^{-r(u-t)} ( r(a_u - c_u) du \right],
+</span> such that: <span class="math display">
+\begin{align}
+dW_t &amp;= r(W_t - u(c_t) + h(a_t)) dt + r \gamma(a_t)( dX_t-a_t dt) \\
+C_t &amp;\geq 0 \\
+a_t &amp;\in [0,\hat{A}]  \\
+\gamma(a_t) &amp;\text{ is incentive compatible}
+\end{align}
 </span></p>
-<p>where:</p>
+<p>We can convert this optimal control problem into a dynamic problem by defining the principal’s profit function <span class="math inline">F(W)</span> as: <span class="math display">
+F(W_t) = \max_{a &gt; 0, c} \mathbb{E}_t \left[ \int_t^{t+s} e^{-r(u-t)} (a_u - c_u)du+ e^{-rs}F(W_{t+s})  \right]
+</span> By applying the Ito’s Lemma to <span class="math inline">e^{-rs}F(W_{t+s})</span>, dividing by <span class="math inline">s</span> and letting <span class="math inline">s</span> goes to zero, we obtain the Hamilton-Jacobi-Bellman (HJB) equation for the principal’s profit function <span class="math inline">F(W)</span>:</p>
 <p><span class="math display">
-dX_t = A_t dt + \sigma dB_t
+\begin{align}
+r F(W) = \max_{a &gt; 0, c} \left\{ r(a - c) + F&#39;(W) r(W - u(c) + h(a)) + \frac{1}{2} F&#39;&#39;(W) r^2 \gamma(a)^2 \sigma^2 \right\}
+\end{align}
 </span></p>
 <ul>
-<li><span class="math inline">r(a - c)</span> is the <strong>instantaneous profit flow</strong> of the principal,</li>
+<li><span class="math inline">r(a - c)</span> is the instantaneous profit flow of the principal,</li>
 <li><span class="math inline">F&#39;(W) r(W - u(c) + h(a))</span> accounts for how the agent’s continuation value changes due to effort and consumption,</li>
-<li><span class="math inline">\frac{1}{2} F&#39;&#39;(W) r^2 \gamma(a)^2 \sigma^2</span> captures the impact of volatility in the contract.</li>
+<li><span class="math inline">\frac{1}{2} F&#39;&#39;(W) r^2 \gamma(a)^2 \sigma^2</span> captures the impact of volatility and the sensitivity of effort in the contract.</li>
 </ul>
 <section id="parameter-values-and-functional-forms" class="level2">
 <h2 class="anchored" data-anchor-id="parameter-values-and-functional-forms">Parameter values and Functional forms</h2>
@@ -4907,7 +4928,7 @@ F&#39;&#39;(W) = \min_{a &gt; 0, c} \frac{F(W) - a + c - F&#39;(W)(W - u(c) + h(
 </section>
 <section id="code-for-figure-1" class="level1">
 <h1>Code For Figure 1</h1>
-<div id="1ba68e5e" class="cell" data-execution_count="1">
+<div id="3207bb47" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show the code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -4987,9 +5008,9 @@ F&#39;&#39;(W) = \min_{a &gt; 0, c} \frac{F(W) - a + c - F&#39;(W)(W - u(c) + h(
 <span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>        <span class="cf">break</span></span>
 <span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>    c <span class="op">=</span> c_star(Fp)</span>
 <span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>    a <span class="op">=</span> minimize(</span>
-<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> a: (F <span class="op">-</span> a <span class="op">+</span> c <span class="op">-</span> Fp<span class="op">*</span>(W <span class="op">-</span> u(c) <span class="op">+</span> h(a))) <span class="op">/</span> (r<span class="op">*</span>gamma(a)<span class="op">**</span><span class="dv">2</span><span class="op">*</span>sigma<span class="op">**</span><span class="dv">2</span><span class="op">/</span><span class="dv">2</span>),</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> a: (F <span class="op">-</span> a <span class="op">+</span> c <span class="op">-</span> Fp<span class="op">*</span>(W <span class="op">-</span> u(c) <span class="op">+</span> h(a))) <span class="op">/</span> (r<span class="op">*</span>gamma(a)<span class="op">**</span><span class="dv">2</span><span class="op">*</span>sigma<span class="op">**</span><span class="dv">2</span><span class="op">/</span><span class="dv">2</span>),  </span>
 <span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>        <span class="fl">0.5</span>, bounds<span class="op">=</span>[(<span class="fl">0.0</span>, <span class="dv">1</span>)]</span>
-<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>    ).x[<span class="dv">0</span>]</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>    ).x[<span class="dv">0</span>]  <span class="co"># maybe replace by equation 10 in the paper? notice the paper has a typo in the equation.</span></span>
 <span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>    c_vals.append(c)</span>
 <span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>    a_vals.append(a)</span>
 <span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>    drift_vals.append(r<span class="op">*</span>(W <span class="op">-</span> u(c) <span class="op">+</span> h(a)))</span>
